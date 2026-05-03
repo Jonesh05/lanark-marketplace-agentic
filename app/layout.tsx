@@ -1,12 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
-import { headers } from "next/headers"
-import { cookieToInitialState } from "wagmi"
 import { Toaster } from "sonner"
 
-import { wagmiConfig } from "@/lib/reown/config"
-import { ReownProvider } from "@/components/providers/reown-provider"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import "./globals.css"
 
@@ -29,10 +25,6 @@ export const metadata: Metadata = {
   description:
     "Place, accept and settle marketplace offers in cUSD on Celo. An AI agent runs the loop end-to-end.",
   generator: "v0.app",
-  icons: {
-    icon: "/icon.svg",
-    apple: "/apple-icon.png",
-  },
 }
 
 export const viewport: Viewport = {
@@ -42,13 +34,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // Hydrate wagmi state from cookies so wallet connections survive SSR.
-  const cookieHeader = (await headers()).get("cookie")
-  const initialState = cookieToInitialState(wagmiConfig, cookieHeader)
-
   return (
     <html
       lang="en"
@@ -63,10 +51,8 @@ export default async function RootLayout({
           forcedTheme="dark"
           disableTransitionOnChange
         >
-          <ReownProvider initialState={initialState}>
-            {children}
-            <Toaster theme="dark" position="bottom-right" />
-          </ReownProvider>
+          {children}
+          <Toaster theme="dark" position="bottom-right" />
         </ThemeProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
