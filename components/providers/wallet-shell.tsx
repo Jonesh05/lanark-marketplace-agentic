@@ -11,10 +11,12 @@ import { ReownProvider } from "./reown-provider"
  * NOT have to compile wagmi, so cold compiles drop from ~50s to a few
  * seconds and the page never appears blank.
  *
- * We intentionally skip `cookieToInitialState` here. Wagmi's
- * `cookieStorage` reads the session on mount, which is more than enough
- * for a sign-in flow and avoids dragging wagmi into any server bundle.
+ * We read cookies from document.cookie on mount (client-side only) for
+ * wagmi state hydration. This avoids passing cookies through SSR props
+ * which would drag wagmi into the server bundle.
  */
 export function WalletShell({ children }: { children: ReactNode }) {
-  return <ReownProvider>{children}</ReownProvider>
+  // Read cookies client-side; this is a client component so document is available
+  const cookies = typeof document !== "undefined" ? document.cookie : null
+  return <ReownProvider cookies={cookies}>{children}</ReownProvider>
 }

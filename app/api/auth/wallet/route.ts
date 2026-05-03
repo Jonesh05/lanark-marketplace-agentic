@@ -127,25 +127,30 @@ export async function POST(req: NextRequest) {
   }
 
   // Mint the session.
+  console.log("[v0] Generating magic link for:", email)
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email })
   if (link.error || !link.data.properties?.hashed_token) {
+    console.log("[v0] Magic link error:", link.error)
     return NextResponse.json(
       { ok: false, error: "Could not start session" },
       { status: 500 },
     )
   }
 
+  console.log("[v0] Verifying OTP to create session...")
   const supabase = await createClient()
   const verify = await supabase.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.data.properties.hashed_token,
   })
   if (verify.error || !verify.data.user) {
+    console.log("[v0] OTP verification error:", verify.error)
     return NextResponse.json(
       { ok: false, error: verify.error?.message ?? "Session failed" },
       { status: 500 },
     )
   }
+  console.log("[v0] Session created for user:", verify.data.user.id)
 
   // Upsert wallet record (RLS allows: we are now signed in).
   await supabase.from("smart_wallets").upsert(

@@ -52,10 +52,13 @@ export function WalletSignIn({
     if (!address) return
     setSubmitting(true)
     setError(null)
+    console.log("[v0] Starting sign-in for address:", address, "role:", role)
     try {
       const nonce = makeNonce()
       const message = buildMessage(address, nonce)
+      console.log("[v0] Requesting signature...")
       const signature = await signMessageAsync({ message })
+      console.log("[v0] Got signature, calling /api/auth/wallet...")
       const res = await fetch("/api/auth/wallet", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -69,6 +72,7 @@ export function WalletSignIn({
         }),
       })
       const json = await res.json()
+      console.log("[v0] API response:", res.status, json)
       if (!res.ok || !json.ok) {
         const msg = json.error ?? "Sign-in failed"
         setError(msg)
@@ -80,6 +84,7 @@ export function WalletSignIn({
           ? `Welcome to Sablon, ${json.role}.`
           : `Welcome back, ${json.role}.`,
       )
+      console.log("[v0] Sign-in successful, navigating to /dashboard...")
       // Hard navigation guarantees the dashboard server component reads
       // the freshly-written Supabase session cookie. router.refresh()
       // can race with the cookie write from the API response.
