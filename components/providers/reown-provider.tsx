@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode } from "react"
+import { type ReactNode, useState, useEffect } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createAppKit } from "@reown/appkit/react"
 import { cookieToInitialState, WagmiProvider, type Config } from "wagmi"
@@ -19,6 +19,9 @@ const metadata = {
   icons: [],
 }
 
+// Track if AppKit has been initialized
+let appKitInitialized = false
+
 /**
  * Module-scope `createAppKit`. This is the EXACT pattern from Reown's
  * official Next.js example — it must run at module load (not inside the
@@ -30,21 +33,27 @@ const metadata = {
  * using useAppKit hook" during SSR, and Next falls back to client-only
  * rendering with the same error.
  */
-if (projectId) {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    projectId,
-    networks,
-    defaultNetwork: networks[0],
-    metadata,
-    features: {
-      analytics: false,
-      email: true,
-      socials: ["google", "x", "github", "discord", "apple"],
-      emailShowWallets: true,
-    },
-    themeMode: "dark",
-  })
+if (projectId && !appKitInitialized) {
+  try {
+    createAppKit({
+      adapters: [wagmiAdapter],
+      projectId,
+      networks,
+      defaultNetwork: networks[0],
+      metadata,
+      features: {
+        analytics: false,
+        email: true,
+        socials: ["google", "x", "github", "discord", "apple"],
+        emailShowWallets: true,
+      },
+      themeMode: "dark",
+    })
+    appKitInitialized = true
+    console.log("[v0] AppKit initialized successfully")
+  } catch (e) {
+    console.error("[v0] AppKit initialization error:", e)
+  }
 }
 
 export function ReownProvider({
@@ -54,12 +63,36 @@ export function ReownProvider({
   children: ReactNode
   cookies: string | null
 }) {
-  // Hydrate wagmi store from server-set cookies so the connection survives
-  // navigation across server-rendered routes.
+  // Track if component has mounted (for SSR hydration)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Hydrate wagmi store from cookies so the connection survives navigation
   const initialState = cookieToInitialState(
     wagmiAdapter.wagmiConfig as Config,
     cookies,
   )
+
+  // Prevent hydration mismatch by not rendering wallet components until mounted
+  if (!mounted) {
+    return (
+      <WagmiProvider
+        config={wagmiAdapter.wagmiConfig as Config}
+        initialState={initialState}
+      >
+        <QueryClientProvider client={queryClient}>
+          <div className="flex min-h-svh items-center justify-center">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground animate-pulse">
+              Loading wallet…
+            </span>
+          </div>
+        </QueryClientProvider>
+      </WagmiProvider>
+    )
+  }
 
   return (
     <WagmiProvider

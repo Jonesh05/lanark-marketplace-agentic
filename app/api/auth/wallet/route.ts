@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { verifyMessage, isAddress, getAddress } from "viem"
 import { z } from "zod"
 
-import { createClient } from "@/lib/supabase/server"
+import { createRouteHandlerClient } from "@/lib/supabase/route"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { CELO_CHAIN_ID } from "@/lib/celo"
 
@@ -24,8 +24,6 @@ const Body = z.object({
  *   3. Mint a session via admin.generateLink + verifyOtp.
  *   4. Upsert smart_wallets and update profile - but PRESERVE the
  *      existing role for returning users; only set role on first sign-in.
- *      That is what the user means by "select the correct role from the
- *      definition of the wallet user role".
  */
 export async function POST(req: NextRequest) {
   let parsed
@@ -126,7 +124,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Mint the session.
+  // Create route handler client that properly captures cookies
+  const { supabase, createResponse } = await createRouteHandlerClient()
+
+  // Mint the session using generateLink + verifyOtp
   console.log("[v0] Generating magic link for:", email)
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email })
   if (link.error || !link.data.properties?.hashed_token) {
@@ -138,7 +139,6 @@ export async function POST(req: NextRequest) {
   }
 
   console.log("[v0] Verifying OTP to create session...")
-  const supabase = await createClient()
   const verify = await supabase.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.data.properties.hashed_token,
@@ -189,7 +189,8 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", userId)
 
-  return NextResponse.json({
+  // Use createResponse to ensure session cookies are attached
+  return createResponse({
     ok: true,
     userId,
     address,
