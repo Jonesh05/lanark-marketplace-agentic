@@ -16,14 +16,15 @@ const metadata = {
   icons: ["https://avatars.githubusercontent.com/u/179229932"],
 }
 
-// Match Reown's official Next.js example: create the modal at module load.
-// AppKit's React adapter is SSR-safe; it lazy-initialises the WalletConnect
-// client only on the browser. We still guard against double-init across HMR.
 declare global {
   // eslint-disable-next-line no-var
   var __sablonAppKit: ReturnType<typeof createAppKit> | undefined
 }
-if (!globalThis.__sablonAppKit) {
+
+// Initialise AppKit ONLY in the browser. Doing this at module load on the
+// server makes Lit/web-component internals touch `window` and the page
+// silently falls back to a blank screen.
+if (typeof window !== "undefined" && !globalThis.__sablonAppKit) {
   globalThis.__sablonAppKit = createAppKit({
     adapters: [wagmiAdapter],
     networks,

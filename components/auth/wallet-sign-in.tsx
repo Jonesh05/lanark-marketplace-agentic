@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useAccount, useDisconnect, useSignMessage } from "wagmi"
 import { useAppKit } from "@reown/appkit/react"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Wallet, Loader2, ArrowRight, Power } from "lucide-react"
@@ -46,7 +45,6 @@ export function WalletSignIn({
   const { address, isConnected } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
-  const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,8 +80,10 @@ export function WalletSignIn({
           ? `Welcome to Sablon, ${json.role}.`
           : `Welcome back, ${json.role}.`,
       )
-      router.replace("/dashboard")
-      router.refresh()
+      // Hard navigation guarantees the dashboard server component reads
+      // the freshly-written Supabase session cookie. router.refresh()
+      // can race with the cookie write from the API response.
+      window.location.assign("/dashboard")
     } catch (err: any) {
       const msg = err?.shortMessage ?? err?.message ?? "Signature cancelled"
       setError(msg)

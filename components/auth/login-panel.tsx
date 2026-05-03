@@ -11,8 +11,8 @@ export function LoginPanel({ initialRole }: { initialRole: Role }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          1 · Choose your role
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          Step 1 — pick your side
         </span>
         <div
           role="radiogroup"
@@ -21,8 +21,8 @@ export function LoginPanel({ initialRole }: { initialRole: Role }) {
         >
           {(
             [
-              { v: "client", label: "I'm buying", caption: "Place offers" },
-              { v: "shopkeeper", label: "I'm selling", caption: "Manage inventory" },
+              { v: "client", label: "I'm buying" },
+              { v: "shopkeeper", label: "I'm selling" },
             ] as const
           ).map((opt) => (
             <button
@@ -32,33 +32,28 @@ export function LoginPanel({ initialRole }: { initialRole: Role }) {
               aria-checked={role === opt.v}
               onClick={() => setRole(opt.v)}
               className={cn(
-                "flex flex-col gap-0.5 rounded-lg px-3 py-2.5 text-left transition",
+                "rounded-lg px-3 py-2 text-xs font-medium transition",
                 role === opt.v
                   ? "bg-foreground text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <span className="text-xs font-medium">{opt.label}</span>
-              <span
-                className={cn(
-                  "font-mono text-[9px] uppercase tracking-widest",
-                  role === opt.v
-                    ? "text-background/70"
-                    : "text-muted-foreground",
-                )}
-              >
-                {opt.caption}
-              </span>
+              {opt.label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          2 · Connect &amp; sign
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          Step 2 — connect &amp; sign
         </span>
         <WalletSignIn role={role} />
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Use any wallet, or sign in with email/Google/X. Reown will route
+          you to the right flow. Your role is stored once on first sign-in
+          and reused on every future visit.
+        </p>
       </div>
     </div>
   )
