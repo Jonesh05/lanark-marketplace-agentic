@@ -42,15 +42,22 @@ function pickTitle(rel: any): string {
 export function StateBoard({ refreshKey }: { refreshKey: number }) {
   const [snap, setSnap] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
+        setError(null)
         const res = await fetch("/api/state", { cache: "no-store" })
-        if (!res.ok) return
+        if (!res.ok) {
+          if (!cancelled) setError(`state ${res.status}`)
+          return
+        }
         const json = (await res.json()) as Snapshot
         if (!cancelled) setSnap(json)
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? "network error")
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -68,7 +75,19 @@ export function StateBoard({ refreshKey }: { refreshKey: number }) {
       </div>
     )
   }
-  if (!snap) return null
+  if (!snap) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+        <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          State unavailable
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {error ?? "Sign in to see your live state."}
+        </div>
+      </div>
+    )
+  }
 
   const isShop = snap.role === "shopkeeper"
 
