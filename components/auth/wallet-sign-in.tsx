@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAccount, useDisconnect, useSignMessage } from "wagmi"
 import { useAppKit } from "@reown/appkit/react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Wallet, Sparkles, Loader2 } from "lucide-react"
+import { Wallet, Loader2, ArrowRight, Power } from "lucide-react"
+import { shortAddress } from "@/lib/format"
 
 function buildMessage(address: string, nonce: string) {
   return [
@@ -26,61 +27,54 @@ function makeNonce() {
     .join("")
 }
 
-type Stage = "idle" | "connecting" | "signing" | "verifying"
-
+/**
+ * Two-step, fully explicit sign-in:
+ *   Step 1: user clicks "Open wallet" -> AppKit modal opens.
+ *   Step 2: once wagmi reports `isConnected`, the signing step renders
+ *           with a clear "Sign in as <role>" button. The user signs the
+ *           message and we POST it to /api/auth/wallet.
+ *
+ * No auto-firing effects, no refs, no race between modal open and
+ * connection. The user always sees what is going to happen next.
+ */
 export function WalletSignIn({
-  role = "client",
-  variant = "wallet",
+  role,
 }: {
-  role?: "client" | "shopkeeper"
-  variant?: "wallet" | "guest"
+  role: "client" | "shopkeeper"
 }) {
   const { open } = useAppKit()
-  const { address, isConnected, connector } = useAccount()
+  const { address, isConnected } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
   const router = useRouter()
-  const [stage, setStage] = useState<Stage>("idle")
-  // Pending = the user clicked recently and we are waiting for the wallet
-  // connection to complete so we can sign automatically. State-driven (not
-  // a ref) so the effect re-runs reliably across re-renders.
-  const [pending, setPending] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!pending || !isConnected || !address) return
-    setPending(false)
-    void runSignIn(address)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pending, isConnected, address])
-
-  async function runSignIn(addr: string) {
-    setStage("signing")
+  async function onSign() {
+    if (!address) return
+    setSubmitting(true)
+    setError(null)
     try {
       const nonce = makeNonce()
-      const message = buildMessage(addr, nonce)
+      const message = buildMessage(address, nonce)
       const signature = await signMessageAsync({ message })
-      setStage("verifying")
-      const cid = (connector?.id ?? "").toLowerCase()
-      const kind: "guest" | "eoa" =
-        cid.includes("auth") || cid.includes("appkit") || variant === "guest"
-          ? "guest"
-          : "eoa"
       const res = await fetch("/api/auth/wallet", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          address: addr,
+          address,
           signature,
           message,
           nonce,
           role,
-          kind,
+          kind: "eoa",
         }),
       })
       const json = await res.json()
       if (!res.ok || !json.ok) {
-        toast.error(json.error ?? "Wallet sign-in failed")
-        await disconnectAsync().catch(() => {})
+        const msg = json.error ?? "Sign-in failed"
+        setError(msg)
+        toast.error(msg)
         return
       }
       toast.success(
@@ -88,65 +82,79 @@ export function WalletSignIn({
           ? `Welcome to Sablon, ${json.role}.`
           : `Welcome back, ${json.role}.`,
       )
-      // Replace + refresh so the session cookie is picked up by the
-      // dashboard's server component on the next render.
       router.replace("/dashboard")
       router.refresh()
     } catch (err: any) {
-      const msg = err?.shortMessage ?? err?.message ?? "Sign-in cancelled"
+      const msg = err?.shortMessage ?? err?.message ?? "Signature cancelled"
+      setError(msg)
       toast.error(msg)
-      await disconnectAsync().catch(() => {})
     } finally {
-      setStage("idle")
+      setSubmitting(false)
     }
   }
 
-  async function onClick() {
-    if (stage !== "idle") return
-    if (isConnected && address) {
-      // Already connected from a prior session - sign right away.
-      await runSignIn(address)
-      return
-    }
-    setPending(true)
-    setStage("connecting")
-    try {
-      await open({ view: "Connect" })
-    } catch (err: any) {
-      setPending(false)
-      setStage("idle")
-      toast.error(err?.message ?? "Could not open wallet")
-    }
+  // Step 1: not yet connected
+  if (!isConnected || !address) {
+    return (
+      <Button
+        size="lg"
+        className="h-12 w-full justify-between gap-3"
+        onClick={() => open()}
+        type="button"
+      >
+        <span className="flex items-center gap-3">
+          <Wallet className="h-4 w-4" />
+          Open wallet or social login
+        </span>
+        <ArrowRight className="h-4 w-4 opacity-60" />
+      </Button>
+    )
   }
 
-  const label = (() => {
-    if (stage === "connecting") return "Opening wallet…"
-    if (stage === "signing") return "Sign the message…"
-    if (stage === "verifying") return "Verifying…"
-    return variant === "guest"
-      ? "Continue with email or social"
-      : "Continue with wallet"
-  })()
-
-  const busy = stage !== "idle"
-
+  // Step 2: connected, ready to sign
   return (
-    <Button
-      size="lg"
-      variant={variant === "guest" ? "default" : "outline"}
-      className="h-12 w-full justify-start gap-3 text-sm"
-      onClick={onClick}
-      disabled={busy}
-      type="button"
-    >
-      {busy ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : variant === "guest" ? (
-        <Sparkles className="h-4 w-4" />
-      ) : (
-        <Wallet className="h-4 w-4" />
+    <div className="flex flex-col gap-3 rounded-xl border border-accent/30 bg-accent/5 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="block h-1.5 w-1.5 rounded-full bg-accent" />
+          <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Connected
+          </span>
+          <span className="font-mono text-[11px] text-foreground">
+            {shortAddress(address)}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => disconnectAsync().catch(() => {})}
+          className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
+        >
+          <Power className="h-3 w-3" />
+          Switch
+        </button>
+      </div>
+      <Button
+        size="lg"
+        className="h-12 w-full justify-between gap-3"
+        onClick={onSign}
+        disabled={submitting}
+        type="button"
+      >
+        <span className="flex items-center gap-3">
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Wallet className="h-4 w-4" />
+          )}
+          {submitting ? "Sign the message in your wallet…" : `Sign in as ${role}`}
+        </span>
+        {!submitting && <ArrowRight className="h-4 w-4 opacity-60" />}
+      </Button>
+      {error && (
+        <p className="font-mono text-[10px] uppercase tracking-widest text-destructive">
+          {error}
+        </p>
       )}
-      {label}
-    </Button>
+    </div>
   )
 }

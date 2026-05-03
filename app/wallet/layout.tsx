@@ -1,6 +1,6 @@
 import { WalletShell } from "@/components/providers/wallet-shell"
 
-export default async function ChatLayout({
+export default function WalletLayout({
   children,
 }: {
   children: React.ReactNode

@@ -73,7 +73,7 @@ export async function SiteHeader() {
           ) : (
             <>
               <AgentPulse />
-              <WalletPill />
+              <WalletPill address={primaryAddress} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-full border border-border/60 px-2 py-1 text-[11px] hover:bg-accent/10">
@@ -102,6 +102,9 @@ export async function SiteHeader() {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard">Dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/wallet">Wallet</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <form action={signOut}>
