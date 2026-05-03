@@ -3,7 +3,7 @@ import { updateSession } from "@/lib/supabase/proxy"
 
 // Next.js 16 renamed `middleware.ts` -> `proxy.ts`. This file is the
 // per-request edge entry point.
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request)
 }
 

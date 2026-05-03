@@ -15,7 +15,8 @@ if (!reownProjectId) {
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [celo]
 
 export const wagmiAdapter = new WagmiAdapter({
-  storage: createStorage({ storage: cookieStorage }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  storage: createStorage({ storage: cookieStorage as any }) as any,
   ssr: true,
   projectId: reownProjectId,
   networks,

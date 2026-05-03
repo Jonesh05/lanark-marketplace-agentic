@@ -4,9 +4,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
@@ -14,17 +11,13 @@ const nextConfig = {
       { protocol: "https", hostname: "blobs.vusercontent.net" },
     ],
   },
-  // Reown / WalletConnect / pino transitive deps that don't exist in the
-  // edge or browser bundles. Mark them external so webpack stops trying to
-  // resolve them at build time.
-  webpack: (config) => {
-    config.externals = [
-      ...(config.externals ?? []),
-      "pino-pretty",
-      "lokijs",
-      "encoding",
-    ]
-    return config
+  serverExternalPackages: ["pino", "pino-pretty", "lokijs", "encoding"],
+  turbopack: {
+    resolveAlias: {
+      // wagmi/core does an optional `import('accounts')`; stub it so the
+      // bundler doesn't fail on a non-existent module. Path is project-relative.
+      accounts: "./lib/shims/accounts.ts",
+    },
   },
 }
 
