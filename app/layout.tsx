@@ -1,44 +1,74 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
+import type { Metadata, Viewport } from "next"
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import { headers } from "next/headers"
+import { cookieToInitialState } from "wagmi"
+import { Toaster } from "sonner"
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+import { wagmiConfig } from "@/lib/reown/config"
+import { ReownProvider } from "@/components/providers/reown-provider"
+import { ThemeProvider } from "@/components/providers/theme-provider"
+import "./globals.css"
+
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+})
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+})
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-instrument-serif",
+})
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
+  title: "Sablon — Agentic on-chain marketplace",
+  description:
+    "Place, accept and settle marketplace offers in cUSD on Celo. An AI agent runs the loop end-to-end.",
+  generator: "v0.app",
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: "/icon.svg",
+    apple: "/apple-icon.png",
   },
 }
 
-export default function RootLayout({
+export const viewport: Viewport = {
+  themeColor: "#111418",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+}
+
+export default async function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
+  // Hydrate wagmi state from cookies so wallet connections survive SSR.
+  const cookieHeader = (await headers()).get("cookie")
+  const initialState = cookieToInitialState(wagmiConfig, cookieHeader)
+
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} bg-background dark`}
+    >
       <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          forcedTheme="dark"
+          disableTransitionOnChange
+        >
+          <ReownProvider initialState={initialState}>
+            {children}
+            <Toaster theme="dark" position="bottom-right" />
+          </ReownProvider>
+        </ThemeProvider>
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   )
