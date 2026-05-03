@@ -36,9 +36,9 @@ export async function POST(req: Request) {
     .single()
 
   const role = (profile?.role ?? "client") as "client" | "shopkeeper"
-  const tools = buildTools({ supabase, userId: user.id, role })
-
   const body = await req.json()
+  const threadId = String(body.id ?? body.threadId ?? `web-${user.id}`)
+  const tools = buildTools({ supabase, userId: user.id, role, threadId })
   const messages = await validateUIMessages<SablonChatMessage>({
     messages: body.messages,
     tools,

@@ -20,3 +20,13 @@ export function shortAddress(addr: string | null | undefined): string {
   if (!addr) return ""
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
+
+export function formatCop(cents: number): string {
+  return formatPrice(cents, "COP")
+}
+
+/** cUSD has 6 decimals on-chain. */
+export function formatCusdMicro(micro: number | bigint): string {
+  const n = typeof micro === "bigint" ? Number(micro) : micro
+  return ((n ?? 0) / 1_000_000).toFixed(2)
+}

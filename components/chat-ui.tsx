@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useId } from "react"
 import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
@@ -20,11 +20,21 @@ const SUGGESTIONS_BY_ROLE: Record<"client" | "shopkeeper", string[]> = {
   ],
 }
 
-export function ChatUI({ role }: { role: "client" | "shopkeeper" }) {
+export function ChatUI({
+  role,
+  embedded = false,
+  onActivity,
+}: {
+  role: "client" | "shopkeeper"
+  embedded?: boolean
+  onActivity?: () => void
+}) {
   const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
+  const threadId = useId()
 
   const { messages, sendMessage, status } = useChat({
+    id: threadId,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   })
 
@@ -34,6 +44,31 @@ export function ChatUI({ role }: { role: "client" | "shopkeeper" }) {
       behavior: "smooth",
     })
   }, [messages, status])
+
+  // Whenever a tool result lands, the surface's state board / trace need
+  // to refresh - the DB is the source of truth.
+  const lastSig = useRef<string>("")
+  useEffect(() => {
+    if (!onActivity) return
+    const last = messages[messages.length - 1]
+    if (!last) return
+    const toolDone = (last.parts ?? []).some(
+      (p: any) =>
+        typeof p.type === "string" &&
+        p.type.startsWith("tool-") &&
+        (p.state === "output-available" || p.state === "output-error"),
+    )
+    const sig = `${last.id}:${(last.parts ?? []).length}:${status}`
+    if (toolDone && sig !== lastSig.current) {
+      lastSig.current = sig
+      onActivity()
+    }
+    // also fire when a message stream fully ends
+    if (status === "ready" && sig !== lastSig.current) {
+      lastSig.current = sig
+      onActivity()
+    }
+  }, [messages, status, onActivity])
 
   const isStreaming = status === "streaming" || status === "submitted"
   const suggestions = SUGGESTIONS_BY_ROLE[role]
@@ -46,11 +81,13 @@ export function ChatUI({ role }: { role: "client" | "shopkeeper" }) {
   }
 
   return (
-    <div className="flex h-[calc(100svh-3.5rem)] flex-col">
+    <div
+      className={`flex flex-col ${embedded ? "h-full" : "h-[calc(100svh-3.5rem)]"}`}
+    >
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10">
           {messages.length === 0 && (
-            <div className="flex flex-col items-center gap-5 py-16 text-center">
+            <div className="flex flex-col items-center gap-5 py-10 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-accent/10 text-accent">
                 <Sparkles className="h-5 w-5" />
               </div>
@@ -84,13 +121,12 @@ export function ChatUI({ role }: { role: "client" | "shopkeeper" }) {
             <Message key={m.id} message={m} />
           ))}
 
-          {isStreaming &&
-            messages[messages.length - 1]?.role === "user" && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Thinking…
-              </div>
-            )}
+          {isStreaming && messages[messages.length - 1]?.role === "user" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Thinking…
+            </div>
+          )}
         </div>
       </div>
 

@@ -49,16 +49,16 @@ export async function SiteHeader() {
           {user && (
             <>
               <Link
+                href="/app"
+                className="transition-colors hover:text-foreground"
+              >
+                Surface
+              </Link>
+              <Link
                 href="/dashboard"
                 className="transition-colors hover:text-foreground"
               >
                 Dashboard
-              </Link>
-              <Link
-                href="/chat"
-                className="transition-colors hover:text-foreground"
-              >
-                Agent
               </Link>
             </>
           )}
@@ -93,10 +93,10 @@ export async function SiteHeader() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/app">Surface</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/chat">Agent</Link>
+                  <Link href="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <form action={signOut}>
