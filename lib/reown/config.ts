@@ -1,24 +1,33 @@
-import { cookieStorage, createStorage } from "wagmi"
+import { cookieStorage, createStorage } from "@wagmi/core"
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi"
-import { celo } from "@reown/appkit/networks"
+import { celo, celoAlfajores } from "@reown/appkit/networks"
 import type { AppKitNetwork } from "@reown/appkit/networks"
 
-// Public project ID - safe to ship to the client.
-export const reownProjectId =
+/**
+ * Reown / WalletConnect project ID. Pulled from either
+ * `NEXT_PUBLIC_REOWN_PROJECT_ID` or `NEXT_PUBLIC_WC_PROJECT_ID`. We do not
+ * throw on missing — that would crash the whole app at import time. Instead
+ * we surface the absence in the UI and let everything else still render.
+ */
+export const projectId =
   process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ??
-  "81a3cb53bb4adf0286c6e1e243d3f293"
+  process.env.NEXT_PUBLIC_WC_PROJECT_ID ??
+  ""
 
-if (!reownProjectId) {
-  throw new Error("NEXT_PUBLIC_REOWN_PROJECT_ID is required")
-}
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  celo,
+  celoAlfajores,
+]
 
-export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [celo]
-
+/**
+ * Wagmi adapter. Lives in a non-`'use client'` module on purpose: it's
+ * imported by both the client provider and any server code that needs the
+ * config (e.g. `cookieToInitialState`).
+ */
 export const wagmiAdapter = new WagmiAdapter({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  storage: createStorage({ storage: cookieStorage as any }) as any,
+  storage: createStorage({ storage: cookieStorage }),
   ssr: true,
-  projectId: reownProjectId,
+  projectId: projectId || "missing-project-id",
   networks,
 })
 

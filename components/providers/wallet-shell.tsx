@@ -1,21 +1,20 @@
-import { headers } from "next/headers"
-import { cookieToInitialState } from "wagmi"
-import { wagmiConfig } from "@/lib/reown/config"
-import { ReownProvider } from "@/components/providers/reown-provider"
+"use client"
+
+import type { ReactNode } from "react"
+import { ReownProvider } from "./reown-provider"
 
 /**
- * Server wrapper that hydrates wagmi from request cookies and mounts
- * ReownProvider. Used by every route that needs wallet awareness:
- * /auth/login, /dashboard, /app, /chat. Keeping it out of the root
- * layout means the marketing/marketplace pages compile without the
- * wagmi/Reown dependency tree.
+ * Client wrapper that mounts ReownProvider. Marked "use client" so Next.js
+ * treats this as a client boundary — the wagmi/Reown dependency tree
+ * (200+ modules) is bundled ONLY into the client bundle for routes that
+ * use it (/auth/login, /wallet). The server SSR for those routes does
+ * NOT have to compile wagmi, so cold compiles drop from ~50s to a few
+ * seconds and the page never appears blank.
+ *
+ * We intentionally skip `cookieToInitialState` here. Wagmi's
+ * `cookieStorage` reads the session on mount, which is more than enough
+ * for a sign-in flow and avoids dragging wagmi into any server bundle.
  */
-export async function WalletShell({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const cookieHeader = (await headers()).get("cookie")
-  const initialState = cookieToInitialState(wagmiConfig, cookieHeader)
-  return <ReownProvider initialState={initialState}>{children}</ReownProvider>
+export function WalletShell({ children }: { children: ReactNode }) {
+  return <ReownProvider>{children}</ReownProvider>
 }

@@ -1,67 +1,69 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
-import { WagmiProvider, type State } from "wagmi"
+import { type ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createAppKit } from "@reown/appkit/react"
-import { wagmiAdapter, reownProjectId, networks } from "@/lib/reown/config"
+import { cookieToInitialState, WagmiProvider, type Config } from "wagmi"
+
+import { wagmiAdapter, projectId, networks } from "@/lib/reown/config"
+
+const queryClient = new QueryClient()
 
 const metadata = {
   name: "Sablon",
-  description: "Agentic on-chain marketplace · cUSD on Celo",
+  description: "Agentic on-chain marketplace on Celo",
   url:
     typeof window !== "undefined"
       ? window.location.origin
       : "https://sablon.app",
-  icons: ["https://avatars.githubusercontent.com/u/179229932"],
+  icons: [],
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __sablonAppKit: ReturnType<typeof createAppKit> | undefined
-}
-
-// Initialise AppKit ONLY in the browser. Doing this at module load on the
-// server makes Lit/web-component internals touch `window` and the page
-// silently falls back to a blank screen.
-if (typeof window !== "undefined" && !globalThis.__sablonAppKit) {
-  globalThis.__sablonAppKit = createAppKit({
+/**
+ * Module-scope `createAppKit`. This is the EXACT pattern from Reown's
+ * official Next.js example — it must run at module load (not inside the
+ * component body, not behind a `typeof window` guard). The Lit web
+ * components inside AppKit are only mounted lazily when the modal is
+ * opened, so module-scope evaluation is safe during SSR.
+ *
+ * Without this, `useAppKit()` throws "Please call createAppKit before
+ * using useAppKit hook" during SSR, and Next falls back to client-only
+ * rendering with the same error.
+ */
+if (projectId) {
+  createAppKit({
     adapters: [wagmiAdapter],
+    projectId,
     networks,
-    projectId: reownProjectId,
+    defaultNetwork: networks[0],
     metadata,
     features: {
       analytics: false,
       email: true,
-      socials: ["google", "x", "github"],
+      socials: ["google", "x", "github", "discord", "apple"],
       emailShowWallets: true,
     },
     themeMode: "dark",
-    themeVariables: {
-      "--w3m-accent": "#22c55e",
-    },
   })
 }
 
 export function ReownProvider({
   children,
-  initialState,
+  cookies,
 }: {
   children: ReactNode
-  initialState?: State
+  cookies: string | null
 }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { staleTime: 30_000, refetchOnWindowFocus: false },
-        },
-      }),
+  // Hydrate wagmi store from server-set cookies so the connection survives
+  // navigation across server-rendered routes.
+  const initialState = cookieToInitialState(
+    wagmiAdapter.wagmiConfig as Config,
+    cookies,
   )
 
   return (
     <WagmiProvider
-      config={wagmiAdapter.wagmiConfig}
+      config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
