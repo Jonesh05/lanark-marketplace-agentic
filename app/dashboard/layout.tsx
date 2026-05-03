@@ -1,6 +1,6 @@
 import { WalletShell } from "@/components/providers/wallet-shell"
 
-export default async function LoginLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode

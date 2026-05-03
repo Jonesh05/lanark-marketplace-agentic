@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useAccount, useDisconnect, useSignMessage } from "wagmi"
 import { useAppKit } from "@reown/appkit/react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Wallet, Sparkles } from "lucide-react"
+import { Wallet, Sparkles, Loader2 } from "lucide-react"
 
 function buildMessage(address: string, nonce: string) {
   return [
@@ -41,25 +41,25 @@ export function WalletSignIn({
   const { signMessageAsync } = useSignMessage()
   const router = useRouter()
   const [stage, setStage] = useState<Stage>("idle")
-  const triggered = useRef(false)
+  // Pending = the user clicked recently and we are waiting for the wallet
+  // connection to complete so we can sign automatically. State-driven (not
+  // a ref) so the effect re-runs reliably across re-renders.
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
-    if (!isConnected || !address || !triggered.current) return
+    if (!pending || !isConnected || !address) return
+    setPending(false)
     void runSignIn(address)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, address])
+  }, [pending, isConnected, address])
 
   async function runSignIn(addr: string) {
-    triggered.current = false
     setStage("signing")
     try {
       const nonce = makeNonce()
       const message = buildMessage(addr, nonce)
       const signature = await signMessageAsync({ message })
       setStage("verifying")
-      // Heuristic: Reown's social/email connector ID typically contains
-      // "auth" or "appKitAuth"; we tag those as `guest` (smart account) so
-      // the agent loop knows it can sponsor gas.
       const cid = (connector?.id ?? "").toLowerCase()
       const kind: "guest" | "eoa" =
         cid.includes("auth") || cid.includes("appkit") || variant === "guest"
@@ -83,8 +83,14 @@ export function WalletSignIn({
         await disconnectAsync().catch(() => {})
         return
       }
-      toast.success("Welcome to Sablon.")
-      router.push("/dashboard")
+      toast.success(
+        json.isNewUser
+          ? `Welcome to Sablon, ${json.role}.`
+          : `Welcome back, ${json.role}.`,
+      )
+      // Replace + refresh so the session cookie is picked up by the
+      // dashboard's server component on the next render.
+      router.replace("/dashboard")
       router.refresh()
     } catch (err: any) {
       const msg = err?.shortMessage ?? err?.message ?? "Sign-in cancelled"
@@ -97,13 +103,20 @@ export function WalletSignIn({
 
   async function onClick() {
     if (stage !== "idle") return
-    triggered.current = true
     if (isConnected && address) {
+      // Already connected from a prior session - sign right away.
       await runSignIn(address)
       return
     }
+    setPending(true)
     setStage("connecting")
-    await open({ view: variant === "guest" ? "Connect" : "Connect" })
+    try {
+      await open({ view: "Connect" })
+    } catch (err: any) {
+      setPending(false)
+      setStage("idle")
+      toast.error(err?.message ?? "Could not open wallet")
+    }
   }
 
   const label = (() => {
@@ -115,16 +128,20 @@ export function WalletSignIn({
       : "Continue with wallet"
   })()
 
+  const busy = stage !== "idle"
+
   return (
     <Button
       size="lg"
       variant={variant === "guest" ? "default" : "outline"}
       className="h-12 w-full justify-start gap-3 text-sm"
       onClick={onClick}
-      disabled={stage !== "idle"}
+      disabled={busy}
       type="button"
     >
-      {variant === "guest" ? (
+      {busy ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : variant === "guest" ? (
         <Sparkles className="h-4 w-4" />
       ) : (
         <Wallet className="h-4 w-4" />

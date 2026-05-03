@@ -1,16 +1,14 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { ShopkeeperDashboard } from "@/components/dashboard/shopkeeper"
 import { ClientDashboard } from "@/components/dashboard/client"
 import type { Product, Offer, Order, Profile } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { setRole } from "@/app/actions/auth"
 
 export const dynamic = "force-dynamic"
 
-// HARD CONSTRAINT: Dashboard must be a Server Component.
+// Dashboard is a Server Component. The role is set at sign-in and is the
+// source of truth here - no graduation prompts, no client-side branching.
 export default async function DashboardPage() {
   const supabase = await createClient()
   const {
@@ -25,46 +23,11 @@ export default async function DashboardPage() {
     .single()
   const profile = profileRow as Profile | null
 
-  // First-time graduation prompt for guests
-  if (profile?.is_guest) {
-    return (
-      <div className="min-h-svh">
-        <SiteHeader />
-        <main className="mx-auto flex max-w-md flex-col gap-6 px-4 py-16">
-          <h1 className="font-serif text-4xl tracking-tight">
-            One last thing.
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Tell us how you want to use Sablon. You can change it later.
-          </p>
-          <div className="flex flex-col gap-3">
-            <form action={setRole.bind(null, "client")}>
-              <Button type="submit" className="h-12 w-full justify-start text-left">
-                I&apos;m here to buy
-              </Button>
-            </form>
-            <form action={setRole.bind(null, "shopkeeper")}>
-              <Button
-                type="submit"
-                variant="outline"
-                className="h-12 w-full justify-start text-left"
-              >
-                I&apos;m here to sell
-              </Button>
-            </form>
-          </div>
-          <Link
-            href="/"
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            ← Back to marketplace
-          </Link>
-        </main>
-      </div>
-    )
-  }
+  // Defensive default: if a row is missing for any reason, treat as client.
+  const role: "client" | "shopkeeper" =
+    profile?.role === "shopkeeper" ? "shopkeeper" : "client"
 
-  if (profile?.role === "shopkeeper") {
+  if (role === "shopkeeper") {
     const [{ data: products }, { data: offers }, { data: orders }] =
       await Promise.all([
         supabase
@@ -90,7 +53,7 @@ export default async function DashboardPage() {
       <div className="min-h-svh">
         <SiteHeader />
         <ShopkeeperDashboard
-          profile={profile}
+          profile={profile!}
           products={(products ?? []) as Product[]}
           offers={(offers ?? []) as Offer[]}
           orders={(orders ?? []) as Order[]}

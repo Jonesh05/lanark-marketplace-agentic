@@ -16,16 +16,15 @@ const metadata = {
   icons: ["https://avatars.githubusercontent.com/u/179229932"],
 }
 
-// createAppKit must run at module scope so `useAppKit()` finds the singleton
-// during the first render, including the SSR pass. AppKit is SSR-safe; the
-// global flag prevents duplicate init across HMR / fast-refresh.
+// Match Reown's official Next.js example: create the modal at module load.
+// AppKit's React adapter is SSR-safe; it lazy-initialises the WalletConnect
+// client only on the browser. We still guard against double-init across HMR.
 declare global {
   // eslint-disable-next-line no-var
-  var __sablonAppKitReady: boolean | undefined
+  var __sablonAppKit: ReturnType<typeof createAppKit> | undefined
 }
-if (typeof window !== "undefined" && !globalThis.__sablonAppKitReady) {
-  globalThis.__sablonAppKitReady = true
-  createAppKit({
+if (!globalThis.__sablonAppKit) {
+  globalThis.__sablonAppKit = createAppKit({
     adapters: [wagmiAdapter],
     networks,
     projectId: reownProjectId,

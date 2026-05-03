@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { shortAddress } from "@/lib/format"
+import { WalletPill } from "@/components/wallet-pill"
+import { AgentPulse } from "@/components/agent-pulse"
 
 export async function SiteHeader() {
   const supabase = await createClient()
@@ -69,6 +71,9 @@ export async function SiteHeader() {
               <Link href="/auth/login">Sign in</Link>
             </Button>
           ) : (
+            <>
+              <AgentPulse />
+              <WalletPill />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-full border border-border/60 px-2 py-1 text-[11px] hover:bg-accent/10">
@@ -108,6 +113,7 @@ export async function SiteHeader() {
                 </form>
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           )}
         </div>
       </div>

@@ -19,18 +19,19 @@ const Body = z.object({
 
 /**
  * Wallet sign-in:
- *   1. Verify the SIWE-ish signature with viem
- *   2. Find-or-create a Supabase user keyed by a deterministic email
- *      derived from the wallet address (the user never sees this email)
- *   3. Generate a magic-link token via the admin API and immediately
- *      verify it server-side - that sets the Supabase session cookies
- *   4. Upsert the smart_wallet row + update profile primary_address/role
+ *   1. Verify the SIWE-ish signature with viem (handles ERC-1271 too).
+ *   2. Find-or-create a Supabase user keyed by a deterministic email.
+ *   3. Mint a session via admin.generateLink + verifyOtp.
+ *   4. Upsert smart_wallets and update profile - but PRESERVE the
+ *      existing role for returning users; only set role on first sign-in.
+ *      That is what the user means by "select the correct role from the
+ *      definition of the wallet user role".
  */
 export async function POST(req: NextRequest) {
   let parsed
   try {
     parsed = Body.parse(await req.json())
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(
       { ok: false, error: "Invalid request payload" },
       { status: 400 },
@@ -47,16 +48,16 @@ export async function POST(req: NextRequest) {
   }
   const address = getAddress(parsed.address)
 
-  // Defence-in-depth: ensure the message includes the nonce we got and the
-  // claimed address. This prevents replay across users.
-  if (!message.includes(nonce) || !message.toLowerCase().includes(address.toLowerCase())) {
+  if (
+    !message.includes(nonce) ||
+    !message.toLowerCase().includes(address.toLowerCase())
+  ) {
     return NextResponse.json(
       { ok: false, error: "Message does not bind to address+nonce" },
       { status: 400 },
     )
   }
 
-  // viem's verifyMessage handles both EOA and ERC-1271 (smart-account) sigs.
   const valid = await verifyMessage({
     address,
     message,
@@ -73,13 +74,8 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient()
   const email = `${address.toLowerCase()}@wallet.sablon.local`
 
-  // Find-or-create the auth user. listUsers + filter is reliable across
-  // SDK versions; createUser idempotently fails on duplicate which we swallow.
   let userId: string | null = null
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1 })
-  // No direct "find by email" in admin v2, but createUser returns existing
-  // user error code we can recover from.
-  void list
+  let isNewUser = false
 
   const created = await admin.auth.admin.createUser({
     email,
@@ -95,8 +91,9 @@ export async function POST(req: NextRequest) {
 
   if (created.data?.user) {
     userId = created.data.user.id
+    isNewUser = true
   } else if (created.error) {
-    // 422 / "already registered" — look up via the SQL view
+    // Existing user - find them.
     const { data: existing } = await admin
       .from("profiles")
       .select("id")
@@ -105,7 +102,6 @@ export async function POST(req: NextRequest) {
     if (existing?.id) {
       userId = existing.id
     } else {
-      // Fallback: search by email via admin via paginated listUsers
       let page = 1
       while (page < 20 && !userId) {
         const { data } = await admin.auth.admin.listUsers({
@@ -130,12 +126,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Generate a one-time magiclink token, then verify it server-side to
-  // mint a session on the cookied server client.
-  const link = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-  })
+  // Mint the session.
+  const link = await admin.auth.admin.generateLink({ type: "magiclink", email })
   if (link.error || !link.data.properties?.hashed_token) {
     return NextResponse.json(
       { ok: false, error: "Could not start session" },
@@ -155,7 +147,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Upsert wallet + sync profile (RLS allows: we're now signed in).
+  // Upsert wallet record (RLS allows: we are now signed in).
   await supabase.from("smart_wallets").upsert(
     {
       user_id: userId,
@@ -166,14 +158,38 @@ export async function POST(req: NextRequest) {
     { onConflict: "address,chain_id" },
   )
 
+  // Resolve the effective role:
+  //   - new user: trust the picked role
+  //   - returning user: use the role already on file
+  let effectiveRole = role
+  let effectiveIsGuest = kind === "guest"
+  if (!isNewUser) {
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("role, is_guest")
+      .eq("id", userId)
+      .single()
+    if (existing?.role) effectiveRole = existing.role as typeof role
+    if (typeof existing?.is_guest === "boolean") {
+      effectiveIsGuest = existing.is_guest
+    }
+  }
+
   await supabase
     .from("profiles")
     .update({
-      role,
-      is_guest: kind === "guest",
+      role: effectiveRole,
+      is_guest: effectiveIsGuest,
       primary_address: address,
     })
     .eq("id", userId)
 
-  return NextResponse.json({ ok: true, userId, address, role, kind })
+  return NextResponse.json({
+    ok: true,
+    userId,
+    address,
+    role: effectiveRole,
+    kind,
+    isNewUser,
+  })
 }
