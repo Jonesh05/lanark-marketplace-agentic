@@ -13,7 +13,7 @@ import { azureChatModel, AZURE_OPENAI_CONFIGURED } from "@/lib/ai/azure"
 import {
   getProductInfo,
   getInventory,
-  submitOffer,
+  submitOffer,+
   createOrder,
   getAccountHistory,
   updateProduct,
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     .single()
 
   const role = (profile?.role ?? "client") as "client" | "shopkeeper"
-  
+
   const body = await req.json()
   const threadId = String(body.id ?? body.threadId ?? `agent-${user.id}`)
   const messages = body.messages ?? []
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       model: azureChatModel,
       system,
       messages: await convertToModelMessages(messages),
-      tools,
+      tools: tools as any,
       maxSteps: 5,
     })
 
