@@ -27,21 +27,24 @@ function makeNonce() {
 }
 
 export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
-  // 1. Evitamos el error de SSR/Inicialización con un estado de montaje
   const [mounted, setMounted] = useState(false)
-
-  // Solo llamamos al hook si estamos seguros de que el Provider existe
-  const appKit = useAppKit()
+  
+  // 1. Esto evita que useAppKit se llame en el servidor
+  const appKit = mounted ? useAppKit() : null 
+  
   const { address, isConnected, connector } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
-
+  
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // 2. Si no ha montado, no renderizamos nada que use los hooks
+  if (!mounted) return null 
 
   async function onSign() {
     if (!address) return
