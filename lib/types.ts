@@ -8,7 +8,13 @@ export interface Profile {
   role: Role
   is_guest: boolean
   primary_address: string | null
+  wallet_address: string | null
+  email: string | null
+  reown_user_id: string | null
+  google_subject_id: string | null
+  telegram_user_id: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface SmartWallet {
@@ -20,9 +26,11 @@ export interface SmartWallet {
   created_at: string
 }
 
+export type ProductSource = "native" | "dummyjson"
+
 export interface Product {
   id: string
-  shopkeeper_id: string
+  shopkeeper_id: string | null
   title: string
   description: string | null
   image_url: string | null
@@ -31,6 +39,14 @@ export interface Product {
   settle_token: string
   stock: number
   active: boolean
+  source: ProductSource
+  external_id: string | null
+  category: string | null
+  brand: string | null
+  thumbnail_url: string | null
+  rating: number | null
+  discount_percentage: number | null
+  tags: string[] | null
   created_at: string
 }
 

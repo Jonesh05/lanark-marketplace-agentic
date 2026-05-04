@@ -52,39 +52,87 @@ export function buildTools(deps: AgentDeps) {
   return {
     searchProducts: tool({
       description:
-        "Search active marketplace listings by free text and price ceiling.",
+        "Search active marketplace listings. Supports free text, price ceiling (in the catalog currency, USD for DummyJSON imports), category, and brand filters. Returns the highest-rated matches first.",
       inputSchema: z.object({
         query: z.string().nullable(),
-        maxPriceCop: z.number().nullable(),
+        maxPrice: z.number().nullable().describe("Max price in the catalog currency (USD for DummyJSON)."),
+        category: z.string().nullable(),
+        brand: z.string().nullable(),
         limit: z.number().int().min(1).max(20).default(8),
       }),
-      execute: async ({ query, maxPriceCop, limit }) => {
-        await log({ step: "decide", kind: "search_products", payload: { query, maxPriceCop, limit } })
+      execute: async ({ query, maxPrice, category, brand, limit }) => {
+        await log({
+          step: "decide",
+          kind: "search_products",
+          payload: { query, maxPrice, category, brand, limit },
+        })
         let q = deps.supabase
           .from("products")
-          .select("id,title,description,price_cents,currency,stock,image_url,settle_token")
+          .select(
+            "id,title,description,price_cents,currency,stock,image_url,thumbnail_url,settle_token,source,category,brand,rating,discount_percentage,tags",
+          )
           .eq("active", true)
           .gt("stock", 0)
-          .order("created_at", { ascending: false })
+          .order("rating", { ascending: false, nullsFirst: false })
           .limit(limit)
         if (query && query.trim().length > 0) {
           const t = query.replace(/[%,]/g, " ").trim()
-          q = q.or(`title.ilike.%${t}%,description.ilike.%${t}%`)
+          q = q.or(`title.ilike.%${t}%,description.ilike.%${t}%,tags.cs.{${t}}`)
         }
-        if (typeof maxPriceCop === "number") {
-          q = q.lte("price_cents", Math.round(maxPriceCop * 100))
+        if (typeof maxPrice === "number") {
+          q = q.lte("price_cents", Math.round(maxPrice * 100))
+        }
+        if (category && category.trim().length > 0) {
+          q = q.eq("category", category.trim().toLowerCase())
+        }
+        if (brand && brand.trim().length > 0) {
+          q = q.ilike("brand", brand.trim())
         }
         const { data, error } = await q
         await log({
           step: "execute",
           kind: "search_products",
-          payload: { query, maxPriceCop, limit },
+          payload: { query, maxPrice, category, brand, limit },
           receipt: { count: data?.length ?? 0 },
           status: error ? "failed" : "ok",
           message: error?.message,
         })
         if (error) return { error: error.message, items: [] }
         return { items: data ?? [] }
+      },
+    }),
+
+    listCategories: tool({
+      description:
+        "List the distinct product categories currently in the catalog, ordered by listing count.",
+      inputSchema: z.object({
+        limit: z.number().int().min(1).max(50).default(20),
+      }),
+      execute: async ({ limit }) => {
+        const { data, error } = await deps.supabase
+          .from("products")
+          .select("category")
+          .eq("active", true)
+          .not("category", "is", null)
+        await log({
+          step: "execute",
+          kind: "list_categories",
+          payload: { limit },
+          status: error ? "failed" : "ok",
+          message: error?.message,
+        })
+        if (error) return { error: error.message, items: [] }
+        const counts = new Map<string, number>()
+        for (const row of data ?? []) {
+          const c = (row as any).category as string | null
+          if (!c) continue
+          counts.set(c, (counts.get(c) ?? 0) + 1)
+        }
+        const items = Array.from(counts.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, limit)
+        return { items }
       },
     }),
 

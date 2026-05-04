@@ -46,7 +46,7 @@ export async function SiteHeader() {
         <Link href="/" className="flex items-center gap-2.5">
           <span className="block h-2 w-2 bg-accent" />
           <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-            Sablon
+            Lanark
           </span>
         </Link>
         <nav className="hidden items-center gap-5 text-xs text-muted-foreground sm:flex">

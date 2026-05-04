@@ -56,16 +56,16 @@ export async function GET() {
   const productsQuery = isShop
     ? supabase
         .from("products")
-        .select("id,title,price_cents,stock,active,created_at")
+        .select("id,title,price_cents,currency,stock,active,created_at")
         .eq("shopkeeper_id", user.id)
         .order("created_at", { ascending: false })
         .limit(8)
     : supabase
         .from("products")
-        .select("id,title,price_cents,stock,active,created_at")
+        .select("id,title,price_cents,currency,stock,active,category,rating,created_at")
         .eq("active", true)
         .gt("stock", 0)
-        .order("created_at", { ascending: false })
+        .order("rating", { ascending: false, nullsFirst: false })
         .limit(6)
 
   const [offers, orders, rep, products] = await Promise.all([

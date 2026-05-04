@@ -10,9 +10,11 @@ import type { Product } from "@/lib/types"
 
 export function OfferForm({ product }: { product: Product }) {
   const [pending, startTransition] = useTransition()
-  // Quote: assume 1 USD ≈ 4000 COP for the suggestion. Real conversion
-  // happens via the agent; this is just an editable starting point.
-  const suggestedCusd = +(product.price_cents / 100 / 4000).toFixed(2)
+  // Quote: cUSD is a USD stablecoin, so for USD-priced listings the
+  // starting suggestion is simply the listing price. For COP-priced
+  // listings we approximate at 4000 COP / 1 USD - the agent can refine.
+  const usdRate = product.currency === "COP" ? 4000 : 1
+  const suggestedCusd = +(product.price_cents / 100 / usdRate).toFixed(2)
   const [qty, setQty] = useState(1)
   const [amount, setAmount] = useState(suggestedCusd.toString())
 

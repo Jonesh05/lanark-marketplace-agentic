@@ -9,14 +9,16 @@ import { ArrowUp, Loader2, Sparkles, Wrench } from "lucide-react"
 
 const SUGGESTIONS_BY_ROLE: Record<"client" | "shopkeeper", string[]> = {
   client: [
-    "What's for sale right now under 200,000 COP?",
-    "Show my open offers",
+    "What categories of products are available?",
+    "Find smartphones under $500",
+    "Place an offer of 10 cUSD on the iPhone 9",
     "What's my cUSD balance?",
+    "Show my open offers",
   ],
   shopkeeper: [
     "Show me pending offers on my listings",
     "How many orders did I confirm this week?",
-    "Reject any offer below 5 cUSD on my electronics",
+    "List my live inventory",
   ],
 }
 

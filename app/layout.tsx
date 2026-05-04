@@ -21,9 +21,9 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: "Sablon — Agentic on-chain marketplace",
+  title: "Lanark — Agentic on-chain marketplace",
   description:
-    "Place, accept and settle marketplace offers in cUSD on Celo. An AI agent runs the loop end-to-end.",
+    "Browse a real product catalog, place offers in plain English, and let an autonomous agent settle every trade in cUSD on Celo.",
   generator: "v0.app",
 }
 

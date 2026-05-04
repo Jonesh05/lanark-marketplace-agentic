@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { formatPrice } from "@/lib/format"
 import { OfferForm } from "@/components/offer-form"
-import type { Product, Profile } from "@/lib/types"
+import type { Product } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -26,11 +26,16 @@ export default async function ProductPage({
 
   const p = product as Product
 
-  const { data: shop } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", p.shopkeeper_id)
-    .single()
+  // Catalog products imported from DummyJSON have no shopkeeper. The
+  // agent itself acts as the autonomous mediator for those listings;
+  // local shops can claim them later. So make this lookup optional.
+  const { data: shop } = p.shopkeeper_id
+    ? await supabase
+        .from("profiles")
+        .select("display_name,role,wallet_address")
+        .eq("id", p.shopkeeper_id)
+        .maybeSingle()
+    : { data: null }
 
   const {
     data: { user },
@@ -96,7 +101,12 @@ export default async function ProductPage({
                 Shop
               </dt>
               <dd className="mt-1 line-clamp-1">
-                {(shop as Profile | null)?.display_name ?? "Anonymous shop"}
+                {shop?.display_name ??
+                  (p.brand
+                    ? p.brand
+                    : p.source === "dummyjson"
+                      ? "Sablon agent (auto)"
+                      : "Anonymous shop")}
               </dd>
             </div>
             <div>

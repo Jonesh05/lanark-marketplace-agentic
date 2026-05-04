@@ -41,13 +41,16 @@ export function ProductCard({ product }: { product: Product }) {
         <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {product.description || "No description provided."}
         </p>
-        <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-muted-foreground">
-          <span>
-            {product.stock > 0 ? `${product.stock} in stock` : "Sold out"}
+        <div className="mt-2 flex items-center justify-between gap-2 text-[10px] uppercase tracking-widest text-muted-foreground">
+          <span className="line-clamp-1">
+            {product.category ?? (product.stock > 0 ? `${product.stock} in stock` : "sold out")}
+            {product.brand ? ` · ${product.brand}` : ""}
           </span>
-          <span className="text-accent">
-            {product.active ? "live" : "paused"}
-          </span>
+          {typeof product.rating === "number" && (
+            <span className="shrink-0 font-mono text-accent">
+              {product.rating.toFixed(1)}★
+            </span>
+          )}
         </div>
       </div>
     </Link>

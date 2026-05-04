@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Boxes, Coins, Loader2, ScrollText, ShieldCheck } from "lucide-react"
-import { formatCop, formatCusdMicro, shortAddress } from "@/lib/format"
+import { formatPrice, formatCusdMicro, shortAddress } from "@/lib/format"
 
 type Snapshot = {
   role: "client" | "shopkeeper"
@@ -28,8 +28,11 @@ type Snapshot = {
     id: string
     title: string
     price_cents: number
+    currency?: string | null
     stock: number
     active: boolean
+    category?: string | null
+    rating?: number | null
   }>
   reputation: { score: number; events: number }
 }
@@ -161,7 +164,7 @@ export function StateBoard({ refreshKey }: { refreshKey: number }) {
           <Row
             key={p.id}
             primary={p.title}
-            secondary={`${formatCop(p.price_cents)} · stock ${p.stock}`}
+            secondary={`${formatPrice(p.price_cents, p.currency ?? "USD")} · stock ${p.stock}${p.category ? ` · ${p.category}` : ""}`}
             badge={p.active ? "live" : "off"}
           />
         ))}
