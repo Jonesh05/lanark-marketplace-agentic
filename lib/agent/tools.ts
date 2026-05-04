@@ -136,6 +136,46 @@ export function buildTools(deps: AgentDeps) {
       },
     }),
 
+    listMyInventory: tool({
+      description:
+        "List the shopkeeper's own product listings (active and inactive). Only available to shopkeepers.",
+      inputSchema: z.object({
+        activeOnly: z.boolean().default(true).describe("If true, only return active listings."),
+        limit: z.number().int().min(1).max(50).default(20),
+      }),
+      execute: async ({ activeOnly, limit }) => {
+        if (deps.role !== "shopkeeper") {
+          await log({
+            step: "error",
+            kind: "list_my_inventory",
+            status: "failed",
+            message: "Role is not shopkeeper.",
+          })
+          return { error: "Only shopkeepers can list their inventory." }
+        }
+        let q = deps.supabase
+          .from("products")
+          .select("id,title,description,price_cents,currency,stock,active,category,brand,created_at")
+          .eq("shopkeeper_id", deps.userId)
+          .order("created_at", { ascending: false })
+          .limit(limit)
+        if (activeOnly) {
+          q = q.eq("active", true)
+        }
+        const { data, error } = await q
+        await log({
+          step: "execute",
+          kind: "list_my_inventory",
+          payload: { activeOnly, limit },
+          receipt: { count: data?.length ?? 0 },
+          status: error ? "failed" : "ok",
+          message: error?.message,
+        })
+        if (error) return { error: error.message, items: [] }
+        return { items: data ?? [] }
+      },
+    }),
+
     getMyOrders: tool({
       description: "List the signed-in user's orders.",
       inputSchema: z.object({

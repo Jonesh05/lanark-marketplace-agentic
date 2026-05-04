@@ -22,7 +22,10 @@ export type SablonChatMessage = UIMessage<
 >
 
 export async function POST(req: Request) {
+  console.log("[v0] Chat route hit")
+
   if (!AZURE_OPENAI_CONFIGURED) {
+    console.log("[v0] Azure OpenAI not configured")
     return Response.json(
       {
         error:
@@ -61,8 +64,9 @@ export async function POST(req: Request) {
     `The signed-in user is a ${role}. Their wallet address is ${profile?.primary_address ?? "(unknown)"}.`,
     "The catalog is real product data (DummyJSON) plus any native shopkeeper listings.",
     "Listings are priced in their native currency (USD for DummyJSON imports) and SETTLE in cUSD on Celo (chainId 42220).",
-    "Use listCategories to discover categories. Use searchProducts(query, maxPrice, category, brand, limit) to fetch listings.",
-    "Use getCusdBalance to read on-chain balance. Use getMyOrders / getMyOffers for the user's history.",
+    "Use listCategories to discover categories. Use searchProducts(query, maxPrice, category, brand, limit) to browse the public catalog.",
+    "Shopkeepers use listMyInventory to see their own listings. Clients use getMyOffers/getMyOrders for their history.",
+    "Use getCusdBalance to read on-chain cUSD balance.",
     "Clients place offers via placeOffer. Shopkeepers decide offers via decideOffer. Never call a tool the role isn't allowed to use.",
     "When a client asks about price in cUSD, assume 1 USD ≈ 1 cUSD (cUSD is a USD stablecoin).",
     "Always quote amounts WITH the unit and decimals. Prefer concise bullet lists over paragraphs.",
@@ -70,15 +74,21 @@ export async function POST(req: Request) {
     "If a tool returns an error, surface it plainly and propose a recovery step.",
   ].join(" ")
 
+  console.log("[v0] Calling Azure OpenAI with", messages.length, "messages as", role)
+
   try {
+    const convertedMessages = await convertToModelMessages(messages)
+    console.log("[v0] Converted messages:", convertedMessages.length)
+
     const result = streamText({
       model: azureChatModel,
       system,
-      messages: await convertToModelMessages(messages),
+      messages: convertedMessages,
       tools,
       stopWhen: stepCountIs(8),
     })
 
+    console.log("[v0] streamText initiated, returning stream response")
     return result.toUIMessageStreamResponse()
   } catch (err) {
     console.error("[v0] Chat route error:", err)

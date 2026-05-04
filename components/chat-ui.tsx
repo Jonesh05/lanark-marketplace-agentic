@@ -35,10 +35,18 @@ export function ChatUI({
   const scrollRef = useRef<HTMLDivElement>(null)
   const threadId = useId()
 
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error } = useChat({
     id: threadId,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
+    onError: (err) => {
+      console.error("[v0] Chat error:", err)
+    },
   })
+
+  // Log status changes for debugging
+  useEffect(() => {
+    console.log("[v0] Chat status:", status, "messages:", messages.length, "error:", error)
+  }, [status, messages.length, error])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -127,6 +135,12 @@ export function ChatUI({
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
               Thinking…
+            </div>
+          )}
+
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <strong>Error:</strong> {error.message ?? String(error)}
             </div>
           )}
         </div>

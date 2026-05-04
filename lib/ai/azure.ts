@@ -1,64 +1,76 @@
-import { createAzure } from "@ai-sdk/azure"
-
 /**
- * Azure OpenAI provider for the Lanark agent.
+ * AI Model configuration for the Lanark agent.
  *
- * Uses @ai-sdk/azure which is purpose-built for Azure OpenAI and correctly
- * routes to /chat/completions (not /responses like @ai-sdk/openai).
+ * The user has Azure OpenAI credentials configured:
+ *   - AZURE_OPENAI_API_KEY
+ *   - AZURE_OPENAI_ENDPOINT (e.g. https://jons-lanark-ai.openai.azure.com)
+ *   - AZURE_OPENAI_DEPLOYMENT_NAME (e.g. gpt-4o-mini)
  *
- * Required env vars (configured in .env.local / Vercel project settings):
- *   - AZURE_OPENAI_API_KEY         : the Azure OpenAI resource key
- *   - AZURE_OPENAI_ENDPOINT        : e.g. https://jons-lanark-ai.openai.azure.com
- *   - AZURE_OPENAI_DEPLOYMENT_NAME : the deployment id (e.g. gpt-4o-mini)
+ * Azure OpenAI uses a different endpoint structure than standard OpenAI:
+ *   POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
+ *
+ * The @ai-sdk/azure provider is currently hitting the wrong endpoint (/v1/chat/completions).
+ * As a workaround, we use the @ai-sdk/openai provider with a custom baseURL that directly
+ * points to the deployment's chat completions endpoint, and inject api-version via headers.
  */
+
+import { createOpenAI } from "@ai-sdk/openai"
 
 const apiKey = process.env.AZURE_OPENAI_API_KEY
 const endpoint = process.env.AZURE_OPENAI_ENDPOINT
 const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "gpt-4o-mini"
 
-if (!apiKey || !endpoint || !deploymentName) {
-  console.error(
+const isConfigured = Boolean(apiKey && endpoint && deploymentName)
+
+if (!isConfigured) {
+  console.warn(
     "[v0] Azure OpenAI is not fully configured. Missing one of: " +
       "AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME",
   )
 }
 
 /**
- * Extract the resource name from the endpoint URL.
- * e.g. https://jons-lanark-ai.openai.azure.com → jons-lanark-ai
+ * Build the Azure OpenAI base URL for the deployment.
+ * Azure expects: {endpoint}/openai/deployments/{deployment}
+ * The provider will append /chat/completions automatically.
  */
-function extractResourceName(endpointUrl: string): string {
-  try {
-    const url = new URL(endpointUrl)
-    const parts = url.hostname.split(".")
-    return parts[0] // e.g. "jons-lanark-ai"
-  } catch {
-    return endpointUrl
-  }
+function buildAzureBaseUrl(): string {
+  const base = (endpoint ?? "").replace(/\/+$/, "")
+  return `${base}/openai/deployments/${deploymentName}`
 }
 
 /**
- * Create the Azure OpenAI provider.
+ * Create an OpenAI-compatible provider that hits Azure OpenAI.
  *
- * IMPORTANT: We use azure.chat() (not azure()) to ensure the SDK uses
- * the /chat/completions endpoint. The default azure() uses /responses
- * which Azure does not support with api-version 2024-10-21.
+ * We override fetch to:
+ * 1. Append ?api-version=2024-10-21 to all requests
+ * 2. Add api-key header (Azure uses api-key, not Authorization Bearer)
  */
-const azure = createAzure({
-  resourceName: extractResourceName(endpoint ?? ""),
+const azureProvider = createOpenAI({
+  baseURL: buildAzureBaseUrl(),
   apiKey: apiKey ?? "",
-  apiVersion: "2024-10-21",
+  compatibility: "compatible",
+  fetch: async (url, options) => {
+    const urlObj = new URL(url as string)
+    urlObj.searchParams.set("api-version", "2024-10-21")
+
+    // Azure expects api-key header, not Authorization Bearer
+    const headers = new Headers(options?.headers)
+    headers.set("api-key", apiKey ?? "")
+    headers.delete("Authorization") // Remove Bearer token if set
+
+    return fetch(urlObj.toString(), {
+      ...options,
+      headers,
+    })
+  },
 })
 
 /**
  * Pre-bound chat model pointing at the configured Azure deployment.
- * Use this everywhere instead of hard-coding the deployment name.
- *
- * We call azure.chat(deployment) to force chat completions endpoint.
+ * The model name is ignored since the deployment is in the baseURL.
  */
-export const azureChatModel = azure.chat(deploymentName)
+export const azureChatModel = azureProvider.chat("gpt-4o-mini")
 
 export const AZURE_DEPLOYMENT_NAME = deploymentName
-export const AZURE_OPENAI_CONFIGURED = Boolean(
-  apiKey && endpoint && deploymentName,
-)
+export const AZURE_OPENAI_CONFIGURED = isConfigured
