@@ -176,6 +176,233 @@ export function buildTools(deps: AgentDeps) {
       },
     }),
 
+    updateProduct: tool({
+      description:
+        "Update an existing product listing. Shopkeepers can update their own products. Records change in audit log for traceability.",
+      inputSchema: z.object({
+        productId: z.string().uuid(),
+        title: z.string().min(2).max(200).nullable().describe("New title, or null to keep current."),
+        description: z.string().max(2000).nullable().describe("New description, or null to keep current."),
+        priceCents: z.number().int().positive().nullable().describe("New price in cents, or null to keep current."),
+        currency: z.enum(["USD", "COP"]).nullable().describe("Currency code, or null to keep current."),
+        stock: z.number().int().min(0).nullable().describe("New stock level, or null to keep current."),
+        active: z.boolean().nullable().describe("Set active/inactive, or null to keep current."),
+        imageUrl: z.string().url().nullable().describe("New image URL, or null to keep current."),
+        category: z.string().nullable().describe("Product category, or null to keep current."),
+        brand: z.string().nullable().describe("Product brand, or null to keep current."),
+      }),
+      execute: async ({ productId, title, description, priceCents, currency, stock, active, imageUrl, category, brand }) => {
+        if (deps.role !== "shopkeeper") {
+          await log({ step: "error", kind: "update_product", status: "failed", message: "Only shopkeepers can update products." })
+          return { error: "Only shopkeepers can update products." }
+        }
+        // Fetch current product to verify ownership and get old values
+        const { data: existing, error: fetchErr } = await deps.supabase
+          .from("products")
+          .select("*")
+          .eq("id", productId)
+          .single()
+        if (fetchErr || !existing) {
+          await log({ step: "error", kind: "update_product", resource: `product:${productId}`, status: "failed", message: "Product not found." })
+          return { error: "Product not found." }
+        }
+        if (existing.shopkeeper_id !== deps.userId) {
+          await log({ step: "error", kind: "update_product", resource: `product:${productId}`, status: "failed", message: "Not your product." })
+          return { error: "You can only update your own products." }
+        }
+        // Build update object with only non-null fields
+        const updates: Record<string, unknown> = {}
+        const changes: Record<string, { from: unknown; to: unknown }> = {}
+        if (title !== null && title !== undefined && title !== existing.title) {
+          updates.title = title
+          changes.title = { from: existing.title, to: title }
+        }
+        if (description !== null && description !== undefined && description !== existing.description) {
+          updates.description = description
+          changes.description = { from: existing.description, to: description }
+        }
+        if (priceCents !== null && priceCents !== undefined && priceCents !== existing.price_cents) {
+          updates.price_cents = priceCents
+          changes.price_cents = { from: existing.price_cents, to: priceCents }
+        }
+        if (currency !== null && currency !== undefined && currency !== existing.currency) {
+          updates.currency = currency
+          changes.currency = { from: existing.currency, to: currency }
+        }
+        if (stock !== null && stock !== undefined && stock !== existing.stock) {
+          updates.stock = stock
+          changes.stock = { from: existing.stock, to: stock }
+        }
+        if (active !== null && active !== undefined && active !== existing.active) {
+          updates.active = active
+          changes.active = { from: existing.active, to: active }
+        }
+        if (imageUrl !== null && imageUrl !== undefined && imageUrl !== existing.image_url) {
+          updates.image_url = imageUrl
+          changes.image_url = { from: existing.image_url, to: imageUrl }
+        }
+        if (category !== null && category !== undefined && category !== existing.category) {
+          updates.category = category
+          changes.category = { from: existing.category, to: category }
+        }
+        if (brand !== null && brand !== undefined && brand !== existing.brand) {
+          updates.brand = brand
+          changes.brand = { from: existing.brand, to: brand }
+        }
+        if (Object.keys(updates).length === 0) {
+          return { ok: true, message: "No changes to apply.", productId }
+        }
+        // Apply update
+        const { data: updated, error: updateErr } = await deps.supabase
+          .from("products")
+          .update(updates)
+          .eq("id", productId)
+          .select("id,title,price_cents,currency,stock,active")
+          .single()
+        if (updateErr) {
+          await log({ step: "error", kind: "update_product", resource: `product:${productId}`, status: "failed", message: updateErr.message })
+          return { error: updateErr.message }
+        }
+        // Record in audit log
+        await deps.supabase.from("audit_log").insert({
+          entity_type: "product",
+          entity_id: productId,
+          action: "update",
+          actor_id: deps.userId,
+          actor_type: "agent",
+          changes,
+          old_values: existing,
+          new_values: updated,
+        })
+        await log({
+          step: "execute",
+          kind: "update_product",
+          resource: `product:${productId}`,
+          payload: updates,
+          receipt: { productId, changedFields: Object.keys(changes) },
+        })
+        return { ok: true, productId, updated, changedFields: Object.keys(changes) }
+      },
+    }),
+
+    createProduct: tool({
+      description:
+        "Create a new product listing for the shopkeeper. Records creation in audit log.",
+      inputSchema: z.object({
+        title: z.string().min(2).max(200),
+        description: z.string().max(2000).nullable(),
+        priceCents: z.number().int().positive().describe("Price in cents (e.g. 1000 = $10.00)."),
+        currency: z.enum(["USD", "COP"]).default("USD"),
+        stock: z.number().int().min(0).default(1),
+        imageUrl: z.string().url().nullable(),
+        category: z.string().nullable(),
+        brand: z.string().nullable(),
+        settleToken: z.enum(["cUSD"]).default("cUSD"),
+      }),
+      execute: async ({ title, description, priceCents, currency, stock, imageUrl, category, brand, settleToken }) => {
+        if (deps.role !== "shopkeeper") {
+          await log({ step: "error", kind: "create_product", status: "failed", message: "Only shopkeepers can create products." })
+          return { error: "Only shopkeepers can create products." }
+        }
+        const { data, error } = await deps.supabase
+          .from("products")
+          .insert({
+            shopkeeper_id: deps.userId,
+            title,
+            description,
+            price_cents: priceCents,
+            currency,
+            stock,
+            image_url: imageUrl,
+            category,
+            brand,
+            settle_token: settleToken,
+            active: true,
+            source: "native",
+          })
+          .select("id,title,price_cents,currency,stock,active")
+          .single()
+        if (error) {
+          await log({ step: "error", kind: "create_product", status: "failed", message: error.message })
+          return { error: error.message }
+        }
+        // Record in audit log
+        await deps.supabase.from("audit_log").insert({
+          entity_type: "product",
+          entity_id: data.id,
+          action: "create",
+          actor_id: deps.userId,
+          actor_type: "agent",
+          changes: { created: true },
+          new_values: data,
+        })
+        await log({
+          step: "execute",
+          kind: "create_product",
+          resource: `product:${data.id}`,
+          receipt: { productId: data.id, title: data.title },
+        })
+        return { ok: true, product: data }
+      },
+    }),
+
+    deleteProduct: tool({
+      description:
+        "Soft-delete a product by setting it inactive. Records deletion in audit log. Only the owning shopkeeper can delete.",
+      inputSchema: z.object({
+        productId: z.string().uuid(),
+        hardDelete: z.boolean().default(false).describe("If true, permanently delete. Default is soft delete (set inactive)."),
+      }),
+      execute: async ({ productId, hardDelete }) => {
+        if (deps.role !== "shopkeeper") {
+          await log({ step: "error", kind: "delete_product", status: "failed", message: "Only shopkeepers can delete products." })
+          return { error: "Only shopkeepers can delete products." }
+        }
+        // Verify ownership
+        const { data: existing } = await deps.supabase
+          .from("products")
+          .select("*")
+          .eq("id", productId)
+          .single()
+        if (!existing) {
+          return { error: "Product not found." }
+        }
+        if (existing.shopkeeper_id !== deps.userId) {
+          return { error: "You can only delete your own products." }
+        }
+        if (hardDelete) {
+          const { error } = await deps.supabase.from("products").delete().eq("id", productId)
+          if (error) {
+            await log({ step: "error", kind: "delete_product", resource: `product:${productId}`, status: "failed", message: error.message })
+            return { error: error.message }
+          }
+        } else {
+          const { error } = await deps.supabase.from("products").update({ active: false }).eq("id", productId)
+          if (error) {
+            await log({ step: "error", kind: "delete_product", resource: `product:${productId}`, status: "failed", message: error.message })
+            return { error: error.message }
+          }
+        }
+        // Record in audit log
+        await deps.supabase.from("audit_log").insert({
+          entity_type: "product",
+          entity_id: productId,
+          action: "delete",
+          actor_id: deps.userId,
+          actor_type: "agent",
+          changes: { hardDelete },
+          old_values: existing,
+        })
+        await log({
+          step: "execute",
+          kind: "delete_product",
+          resource: `product:${productId}`,
+          receipt: { productId, hardDelete },
+        })
+        return { ok: true, productId, deleted: hardDelete ? "hard" : "soft" }
+      },
+    }),
+
     getMyOrders: tool({
       description: "List the signed-in user's orders.",
       inputSchema: z.object({

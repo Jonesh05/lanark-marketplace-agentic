@@ -16,9 +16,11 @@ const SUGGESTIONS_BY_ROLE: Record<"client" | "shopkeeper", string[]> = {
     "Show my open offers",
   ],
   shopkeeper: [
-    "Show me pending offers on my listings",
-    "How many orders did I confirm this week?",
     "List my live inventory",
+    "Update the price of my MacBook to 8,500,000 COP",
+    "Set the stock of my first product to 10",
+    "Show me pending offers on my listings",
+    "Create a new product: 'Laptop Stand' for $49.99 USD",
   ],
 }
 

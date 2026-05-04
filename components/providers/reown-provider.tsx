@@ -50,7 +50,6 @@ if (projectId && !appKitInitialized) {
       themeMode: "dark",
     })
     appKitInitialized = true
-    console.log("[v0] AppKit initialized successfully")
   } catch (e) {
     console.error("[v0] AppKit initialization error:", e)
   }
