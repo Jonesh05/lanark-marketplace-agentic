@@ -111,6 +111,9 @@ export async function SiteHeader() {
                 <DropdownMenuItem asChild>
                   <Link href="/wallet">Wallet</Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">Profile settings</Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <form action={signOut}>
                   <DropdownMenuItem asChild>

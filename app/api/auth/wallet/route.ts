@@ -4,7 +4,7 @@ import { z } from "zod"
 
 import { createRouteHandlerClient } from "@/lib/supabase/route"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { CELO_CHAIN_ID } from "@/lib/celo"
+import { CELO_CHAIN_ID, publicClient } from "@/lib/celo"
 
 export const runtime = "nodejs"
 
@@ -29,9 +29,7 @@ export async function POST(req: NextRequest) {
   try {
     return await handle(req)
   } catch (err: any) {
-    // Final safety net: a thrown error must still return valid JSON
-    // so the client's res.json() never sees an empty body.
-    console.error("[v0] /api/auth/wallet uncaught:", err)
+    // Final safety net: return valid JSON so the client never sees empty body
     return NextResponse.json(
       {
         ok: false,
@@ -76,11 +74,37 @@ async function handle(req: NextRequest) {
     )
   }
 
-  const valid = await verifyMessage({
-    address,
-    message,
-    signature: signature as `0x${string}`,
-  }).catch(() => false)
+  // Try standard ECDSA verification first. If it fails, the address might
+  // be a smart contract wallet (EIP-1271) so we fall back to on-chain check.
+  let valid = false
+  try {
+    valid = await verifyMessage({
+      address,
+      message,
+      signature: signature as `0x${string}`,
+    })
+  } catch {
+    // ECDSA failed, might be a smart contract wallet
+  }
+
+  // EIP-1271 fallback for smart contract wallets (social login, etc.)
+  if (!valid) {
+    try {
+      const client = publicClient()
+      const bytecode = await client.getCode({ address })
+      if (bytecode && bytecode !== "0x") {
+        // It's a contract - use EIP-1271 verification
+        const result = await client.verifyMessage({
+          address,
+          message,
+          signature: signature as `0x${string}`,
+        })
+        valid = result
+      }
+    } catch {
+      // On-chain verification failed
+    }
+  }
 
   if (!valid) {
     return NextResponse.json(
@@ -148,29 +172,24 @@ async function handle(req: NextRequest) {
   const { supabase, createResponse } = await createRouteHandlerClient()
 
   // Mint the session using generateLink + verifyOtp
-  console.log("[v0] Generating magic link for:", email)
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email })
   if (link.error || !link.data.properties?.hashed_token) {
-    console.log("[v0] Magic link error:", link.error)
     return NextResponse.json(
       { ok: false, error: "Could not start session" },
       { status: 500 },
     )
   }
 
-  console.log("[v0] Verifying OTP to create session...")
   const verify = await supabase.auth.verifyOtp({
     type: "magiclink",
     token_hash: link.data.properties.hashed_token,
   })
   if (verify.error || !verify.data.user) {
-    console.log("[v0] OTP verification error:", verify.error)
     return NextResponse.json(
       { ok: false, error: verify.error?.message ?? "Session failed" },
       { status: 500 },
     )
   }
-  console.log("[v0] Session created for user:", verify.data.user.id)
 
   // Upsert wallet record (RLS allows: we are now signed in).
   await supabase.from("smart_wallets").upsert(

@@ -4,6 +4,8 @@ import { formatPrice, shortAddress } from "@/lib/format"
 import { microToCusd } from "@/lib/celo"
 import { NewProductDialog } from "@/components/dashboard/new-product-dialog"
 import { OfferDecisionButtons } from "@/components/dashboard/offer-decision"
+import { EditProductDialog } from "@/components/dashboard/edit-product-dialog"
+import { ProductActions } from "@/components/dashboard/product-actions"
 
 export function ShopkeeperDashboard({
   profile,
@@ -99,21 +101,27 @@ export function ShopkeeperDashboard({
               >
                 <Link
                   href={`/marketplace/${p.id}`}
-                  className="flex min-w-0 flex-col gap-0.5 hover:text-accent"
+                  className="flex min-w-0 flex-1 flex-col gap-0.5 hover:text-accent"
                 >
                   <span className="truncate text-sm">{p.title}</span>
                   <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
                     {formatPrice(p.price_cents, p.currency)} · stock {p.stock}
                   </span>
                 </Link>
-                <span
-                  className={
-                    "font-mono text-[10px] uppercase tracking-widest " +
-                    (p.active ? "text-accent" : "text-muted-foreground")
-                  }
-                >
-                  {p.active ? "live" : "paused"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <EditProductDialog product={p} />
+                  <ProductActions product={p} />
+                  <span
+                    className={
+                      "rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest " +
+                      (p.active
+                        ? "border-accent/40 text-accent"
+                        : "border-border/60 text-muted-foreground")
+                    }
+                  >
+                    {p.active ? "live" : "paused"}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>

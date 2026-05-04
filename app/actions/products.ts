@@ -66,13 +66,158 @@ export async function createProduct(formData: FormData) {
   return { ok: true as const }
 }
 
+const UpdateInput = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(2).max(120).optional(),
+  description: z.string().max(800).optional(),
+  image_url: z.string().url().optional().or(z.literal("")),
+  price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Use a number like 120000").optional(),
+  stock: z.coerce.number().int().min(0).optional(),
+  currency: z.enum(["USD", "COP"]).optional(),
+  active: z.coerce.boolean().optional(),
+})
+
+export async function updateProduct(formData: FormData) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+
+  const parsed = UpdateInput.safeParse({
+    id: formData.get("id"),
+    title: formData.get("title") || undefined,
+    description: formData.get("description") ?? undefined,
+    image_url: formData.get("image_url") ?? undefined,
+    price: formData.get("price") || undefined,
+    stock: formData.get("stock") ?? undefined,
+    currency: formData.get("currency") || undefined,
+    active: formData.get("active") ?? undefined,
+  })
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  // Fetch existing product to verify ownership and track changes
+  const { data: existing, error: fetchErr } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", parsed.data.id)
+    .single()
+  if (fetchErr || !existing) {
+    return { ok: false as const, error: "Product not found" }
+  }
+  if (existing.shopkeeper_id !== user.id) {
+    return { ok: false as const, error: "You can only edit your own products" }
+  }
+
+  // Build update object
+  const updates: Record<string, unknown> = {}
+  const changes: Record<string, { from: unknown; to: unknown }> = {}
+
+  if (parsed.data.title !== undefined && parsed.data.title !== existing.title) {
+    updates.title = parsed.data.title.trim()
+    changes.title = { from: existing.title, to: updates.title }
+  }
+  if (parsed.data.description !== undefined) {
+    const desc = parsed.data.description.trim() || null
+    if (desc !== existing.description) {
+      updates.description = desc
+      changes.description = { from: existing.description, to: desc }
+    }
+  }
+  if (parsed.data.image_url !== undefined) {
+    const img = parsed.data.image_url || null
+    if (img !== existing.image_url) {
+      updates.image_url = img
+      changes.image_url = { from: existing.image_url, to: img }
+    }
+  }
+  if (parsed.data.price !== undefined) {
+    const cents = Math.round(parseFloat(parsed.data.price) * 100)
+    if (cents !== existing.price_cents) {
+      updates.price_cents = cents
+      changes.price_cents = { from: existing.price_cents, to: cents }
+    }
+  }
+  if (parsed.data.stock !== undefined && parsed.data.stock !== existing.stock) {
+    updates.stock = parsed.data.stock
+    changes.stock = { from: existing.stock, to: parsed.data.stock }
+  }
+  if (parsed.data.currency !== undefined && parsed.data.currency !== existing.currency) {
+    updates.currency = parsed.data.currency
+    changes.currency = { from: existing.currency, to: parsed.data.currency }
+  }
+  if (parsed.data.active !== undefined && parsed.data.active !== existing.active) {
+    updates.active = parsed.data.active
+    changes.active = { from: existing.active, to: parsed.data.active }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { ok: true as const, message: "No changes" }
+  }
+
+  const { data: updated, error } = await supabase
+    .from("products")
+    .update(updates)
+    .eq("id", parsed.data.id)
+    .select("*")
+    .single()
+
+  if (error) return { ok: false as const, error: error.message }
+
+  // Record in audit log
+  await supabase.from("audit_log").insert({
+    entity_type: "product",
+    entity_id: parsed.data.id,
+    action: "update",
+    actor_id: user.id,
+    actor_type: "user",
+    changes,
+    old_values: existing,
+    new_values: updated,
+  })
+
+  revalidatePath("/")
+  revalidatePath("/dashboard")
+  return { ok: true as const, updated }
+}
+
 export async function toggleProductActive(productId: string, active: boolean) {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false as const, error: "Not authenticated" }
+
+  // Fetch existing for audit
+  const { data: existing } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .single()
+
   const { error } = await supabase
     .from("products")
     .update({ active })
     .eq("id", productId)
+
   if (error) return { ok: false as const, error: error.message }
+
+  // Audit log
+  if (existing) {
+    await supabase.from("audit_log").insert({
+      entity_type: "product",
+      entity_id: productId,
+      action: "update",
+      actor_id: user.id,
+      actor_type: "user",
+      changes: { active: { from: existing.active, to: active } },
+      old_values: { active: existing.active },
+      new_values: { active },
+    })
+  }
+
   revalidatePath("/")
   revalidatePath("/dashboard")
   return { ok: true as const }
@@ -80,8 +225,34 @@ export async function toggleProductActive(productId: string, active: boolean) {
 
 export async function deleteProduct(productId: string) {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false as const, error: "Not authenticated" }
+
+  // Fetch existing for audit before delete
+  const { data: existing } = await supabase
+    .from("products")
+    .select("*")
+    .eq("id", productId)
+    .single()
+
   const { error } = await supabase.from("products").delete().eq("id", productId)
   if (error) return { ok: false as const, error: error.message }
+
+  // Audit log
+  if (existing) {
+    await supabase.from("audit_log").insert({
+      entity_type: "product",
+      entity_id: productId,
+      action: "delete",
+      actor_id: user.id,
+      actor_type: "user",
+      changes: { deleted: true },
+      old_values: existing,
+    })
+  }
+
   revalidatePath("/")
   revalidatePath("/dashboard")
   return { ok: true as const }
