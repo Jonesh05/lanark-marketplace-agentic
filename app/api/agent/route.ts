@@ -13,7 +13,7 @@ import { azureChatModel, AZURE_OPENAI_CONFIGURED } from "@/lib/ai/azure"
 import {
   getProductInfo,
   getInventory,
-  submitOffer,+
+  submitOffer,
   createOrder,
   getAccountHistory,
   updateProduct,
