@@ -76,30 +76,29 @@ export function ReownProvider({
     cookies,
   )
 
-  // Prevent hydration mismatch by not rendering wallet components until mounted
-  if (!mounted) {
-    return (
-      <WagmiProvider
-        config={wagmiAdapter.wagmiConfig as Config}
-        initialState={initialState}
-      >
-        <QueryClientProvider client={queryClient}>
-          <div className="flex min-h-svh items-center justify-center">
-            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground animate-pulse">
-              Loading wallet…
-            </span>
-          </div>
-        </QueryClientProvider>
-      </WagmiProvider>
-    )
-  }
-
+  // Always render children to maintain consistent hook order across renders.
+  // Use CSS to show/hide instead of conditional rendering to avoid
+  // "Rendered more hooks than during the previous render" error.
   return (
     <WagmiProvider
       config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        {/* Loading indicator - shown only before mount */}
+        <div
+          className="flex min-h-svh items-center justify-center"
+          style={{ display: mounted ? "none" : "flex" }}
+        >
+          <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground animate-pulse">
+            Loading wallet…
+          </span>
+        </div>
+        {/* Children always rendered to preserve hook order, hidden until mounted */}
+        <div style={{ display: mounted ? "contents" : "none" }}>
+          {children}
+        </div>
+      </QueryClientProvider>
     </WagmiProvider>
   )
 }
