@@ -35,7 +35,7 @@ export default async function LoginPage({
           className="flex items-center gap-2 self-start text-xs uppercase tracking-[0.2em] text-muted-foreground transition hover:text-foreground"
         >
           <span className="h-1 w-6 bg-accent" />
-          Sablon
+          Lanark
         </Link>
 
         <div className="flex flex-col gap-3">

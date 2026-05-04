@@ -10,7 +10,7 @@ import { shortAddress } from "@/lib/format"
 
 function buildMessage(address: string, nonce: string) {
   return [
-    "Sign in to Sablon",
+    "Sign in to Lanark Marketplace",
     "",
     `Address: ${address}`,
     `Nonce: ${nonce}`,
@@ -42,7 +42,7 @@ export function WalletSignIn({
   role: "client" | "shopkeeper"
 }) {
   const { open } = useAppKit()
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, connector } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
   const [submitting, setSubmitting] = useState(false)
@@ -56,6 +56,13 @@ export function WalletSignIn({
       const nonce = makeNonce()
       const message = buildMessage(address, nonce)
       const signature = await signMessageAsync({ message })
+      // Detect if this is a Smart Contract Account (from social login).
+      // Reown's AppKit uses "w3mAuth" connector for social logins which
+      // creates an ERC-4337 smart account.
+      const isSCA = connector?.id === "w3mAuth" || 
+                    connector?.name?.toLowerCase().includes("appkit") ||
+                    connector?.name?.toLowerCase().includes("social")
+
       const res = await fetch("/api/auth/wallet", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -65,7 +72,7 @@ export function WalletSignIn({
           message,
           nonce,
           role,
-          kind: "eoa",
+          kind: isSCA ? "sca" : "eoa",
         }),
       })
       // Read as text first so we can surface useful errors even if
