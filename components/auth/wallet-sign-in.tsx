@@ -71,10 +71,28 @@ export function WalletSignIn({
           kind: "eoa",
         }),
       })
-      const json = await res.json()
+      // Read as text first so we can surface useful errors even if
+      // the server responds with an empty body or HTML error page.
+      const raw = await res.text()
+      let json: { ok?: boolean; error?: string; isNewUser?: boolean; role?: string } = {}
+      if (raw) {
+        try {
+          json = JSON.parse(raw)
+        } catch {
+          json = {
+            ok: false,
+            error: `Server returned a non-JSON response (HTTP ${res.status}).`,
+          }
+        }
+      } else {
+        json = {
+          ok: false,
+          error: `Server returned an empty response (HTTP ${res.status}). The sign-in endpoint may have crashed.`,
+        }
+      }
       console.log("[v0] API response:", res.status, json)
       if (!res.ok || !json.ok) {
-        const msg = json.error ?? "Sign-in failed"
+        const msg = json.error ?? `Sign-in failed (HTTP ${res.status})`
         setError(msg)
         toast.error(msg)
         return

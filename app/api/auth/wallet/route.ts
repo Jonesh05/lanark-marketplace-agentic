@@ -26,6 +26,26 @@ const Body = z.object({
  *      existing role for returning users; only set role on first sign-in.
  */
 export async function POST(req: NextRequest) {
+  try {
+    return await handle(req)
+  } catch (err: any) {
+    // Final safety net: a thrown error must still return valid JSON
+    // so the client's res.json() never sees an empty body.
+    console.error("[v0] /api/auth/wallet uncaught:", err)
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          typeof err?.message === "string"
+            ? err.message
+            : "Unexpected server error during sign-in",
+      },
+      { status: 500 },
+    )
+  }
+}
+
+async function handle(req: NextRequest) {
   let parsed
   try {
     parsed = Body.parse(await req.json())
