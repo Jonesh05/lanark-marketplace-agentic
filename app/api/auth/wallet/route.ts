@@ -200,14 +200,21 @@ async function handle(req: NextRequest) {
     }
   }
 
+  // Upsert (not update) so users created before the on_auth_user_created
+  // trigger existed still get a profile row. Without this, every
+  // downstream `.from("profiles").select(...).single()` returns 406.
   await supabase
     .from("profiles")
-    .update({
-      role: effectiveRole,
-      is_guest: effectiveIsGuest,
-      primary_address: address,
-    })
-    .eq("id", userId)
+    .upsert(
+      {
+        id: userId,
+        role: effectiveRole,
+        is_guest: effectiveIsGuest,
+        primary_address: address,
+        display_name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+      },
+      { onConflict: "id" },
+    )
 
   // Use createResponse to ensure session cookies are attached
   return createResponse({

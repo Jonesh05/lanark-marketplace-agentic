@@ -25,11 +25,16 @@ export async function SiteHeader() {
   let role: string | null = null
   let primaryAddress: string | null = null
   if (user) {
+    // maybeSingle so a missing profile row does not throw and force
+    // the server to render a different tree than the client. With
+    // .single(), a missing row returns 406 which can render fewer
+    // elements server-side and trigger a hydration mismatch on
+    // the dropdown trigger button.
     const { data: profile } = await supabase
       .from("profiles")
       .select("display_name, role, is_guest, primary_address")
       .eq("id", user.id)
-      .single()
+      .maybeSingle()
     displayName = profile?.display_name ?? user.email ?? "User"
     role = profile?.role ?? "client"
     primaryAddress = profile?.primary_address ?? null

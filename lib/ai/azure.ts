@@ -47,15 +47,21 @@ function deriveResourceName(raw: string | undefined): string | undefined {
 export const azure = createAzure({
   resourceName: deriveResourceName(endpoint),
   apiKey: apiKey ?? "",
-  // Pin to a recent stable API version that supports tool calling.
+  // Stable GA API version for chat completions + tool calling.
+  // Avoids the "/v1/responses" Responses API which requires a newer
+  // preview version not yet enabled on most Azure resources.
   apiVersion: "2024-10-21",
 })
 
 /**
  * Pre-bound chat model pointing at the configured deployment.
- * Use this everywhere instead of hard-coding the deployment name.
+ *
+ * IMPORTANT: We call `azure.chat(...)` (chat completions) instead of
+ * `azure(...)` (responses API). The default Responses API path
+ * `/openai/v1/responses` is rejected with `API version not supported`
+ * on resources running stable api-versions like 2024-10-21.
  */
-export const azureChatModel = azure(deploymentName ?? "gpt-4o-mini")
+export const azureChatModel = azure.chat(deploymentName ?? "gpt-4o-mini")
 
 export const AZURE_DEPLOYMENT_NAME = deploymentName
 export const AZURE_OPENAI_CONFIGURED = Boolean(
