@@ -102,7 +102,7 @@ export async function POST(req: Request) {
       model: azureChatModel,
       system,
       messages: await convertToModelMessages(messages),
-      tools: tools as any,
+      tools,
       maxSteps: 5,
     })
 
