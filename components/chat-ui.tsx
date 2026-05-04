@@ -38,15 +38,7 @@ export function ChatUI({
   const { messages, sendMessage, status, error } = useChat({
     id: threadId,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
-    onError: (err) => {
-      console.error("[v0] Chat error:", err)
-    },
   })
-
-  // Log status changes for debugging
-  useEffect(() => {
-    console.log("[v0] Chat status:", status, "messages:", messages.length, "error:", error)
-  }, [status, messages.length, error])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({

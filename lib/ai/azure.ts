@@ -9,9 +9,10 @@
  * Azure OpenAI uses a different endpoint structure than standard OpenAI:
  *   POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
  *
- * The @ai-sdk/azure provider is currently hitting the wrong endpoint (/v1/chat/completions).
- * As a workaround, we use the @ai-sdk/openai provider with a custom baseURL that directly
- * points to the deployment's chat completions endpoint, and inject api-version via headers.
+ * We use @ai-sdk/openai with custom fetch to:
+ * 1. Point baseURL to the deployment endpoint
+ * 2. Append api-version query param
+ * 3. Use api-key header (not Authorization Bearer)
  */
 
 import { createOpenAI } from "@ai-sdk/openai"
@@ -31,8 +32,7 @@ if (!isConfigured) {
 
 /**
  * Build the Azure OpenAI base URL for the deployment.
- * Azure expects: {endpoint}/openai/deployments/{deployment}
- * The provider will append /chat/completions automatically.
+ * Azure expects: {endpoint}/openai/deployments/{deployment}/chat/completions
  */
 function buildAzureBaseUrl(): string {
   const base = (endpoint ?? "").replace(/\/+$/, "")
@@ -42,22 +42,20 @@ function buildAzureBaseUrl(): string {
 /**
  * Create an OpenAI-compatible provider that hits Azure OpenAI.
  *
- * We override fetch to:
- * 1. Append ?api-version=2024-10-21 to all requests
- * 2. Add api-key header (Azure uses api-key, not Authorization Bearer)
+ * Custom fetch handles:
+ * - api-version query param
+ * - api-key header (required by Azure, not Authorization Bearer)
  */
 const azureProvider = createOpenAI({
   baseURL: buildAzureBaseUrl(),
-  apiKey: apiKey ?? "",
-  compatibility: "compatible",
+  apiKey: "", // Don't pass apiKey here - we'll inject it via headers in fetch
   fetch: async (url, options) => {
     const urlObj = new URL(url as string)
     urlObj.searchParams.set("api-version", "2024-10-21")
 
-    // Azure expects api-key header, not Authorization Bearer
     const headers = new Headers(options?.headers)
+    // Azure requires api-key header, not Authorization
     headers.set("api-key", apiKey ?? "")
-    headers.delete("Authorization") // Remove Bearer token if set
 
     return fetch(urlObj.toString(), {
       ...options,
@@ -68,7 +66,6 @@ const azureProvider = createOpenAI({
 
 /**
  * Pre-bound chat model pointing at the configured Azure deployment.
- * The model name is ignored since the deployment is in the baseURL.
  */
 export const azureChatModel = azureProvider.chat("gpt-4o-mini")
 

@@ -22,10 +22,7 @@ export type SablonChatMessage = UIMessage<
 >
 
 export async function POST(req: Request) {
-  console.log("[v0] Chat route hit")
-
   if (!AZURE_OPENAI_CONFIGURED) {
-    console.log("[v0] Azure OpenAI not configured")
     return Response.json(
       {
         error:
@@ -74,11 +71,8 @@ export async function POST(req: Request) {
     "If a tool returns an error, surface it plainly and propose a recovery step.",
   ].join(" ")
 
-  console.log("[v0] Calling Azure OpenAI with", messages.length, "messages as", role)
-
   try {
     const convertedMessages = await convertToModelMessages(messages)
-    console.log("[v0] Converted messages:", convertedMessages.length)
 
     const result = streamText({
       model: azureChatModel,
@@ -88,7 +82,6 @@ export async function POST(req: Request) {
       stopWhen: stepCountIs(8),
     })
 
-    console.log("[v0] streamText initiated, returning stream response")
     return result.toUIMessageStreamResponse()
   } catch (err) {
     console.error("[v0] Chat route error:", err)
