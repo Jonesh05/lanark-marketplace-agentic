@@ -11,6 +11,9 @@ importers:
       '@ai-sdk/azure':
         specifier: ^3.0.59
         version: 3.0.59(zod@3.25.76)
+      '@ai-sdk/openai':
+        specifier: ^3.0.58
+        version: 3.0.58(zod@3.25.76)
       '@ai-sdk/react':
         specifier: ^3.0.176
         version: 3.0.176(react@19.2.4)(zod@3.25.76)
