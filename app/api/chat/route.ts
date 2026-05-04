@@ -10,6 +10,7 @@ import {
 
 import { createClient } from "@/lib/supabase/server"
 import { buildTools } from "@/lib/agent/tools"
+import { azureChatModel, AZURE_OPENAI_CONFIGURED } from "@/lib/ai/azure"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -21,6 +22,17 @@ export type SablonChatMessage = UIMessage<
 >
 
 export async function POST(req: Request) {
+  if (!AZURE_OPENAI_CONFIGURED) {
+    return Response.json(
+      {
+        error:
+          "Azure OpenAI is not configured. Set AZURE_OPENAI_API_KEY, " +
+          "AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_DEPLOYMENT_NAME.",
+      },
+      { status: 500 },
+    )
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -55,7 +67,7 @@ export async function POST(req: Request) {
   ].join(" ")
 
   const result = streamText({
-    model: "openai/gpt-5-mini",
+    model: azureChatModel,
     system,
     messages: await convertToModelMessages(messages),
     tools,
