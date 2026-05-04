@@ -5,7 +5,6 @@ import { ProductCard } from "@/components/product-card"
 import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { ArrowUpRight } from "lucide-react"
-import { syncDummyJsonCatalog } from "@/lib/dummyjson"
 
 export const dynamic = "force-dynamic"
 
@@ -63,16 +62,8 @@ export default async function Home({
     q: params.q?.toString(),
   }
 
-  // Bootstrap: if the catalog is empty, ingest DummyJSON once.
-  let { items: list, count: total } = await fetchListings(filter)
-  if (total === 0 && !filter.category && !filter.q) {
-    try {
-      await syncDummyJsonCatalog()
-      ;({ items: list, count: total } = await fetchListings(filter))
-    } catch (err) {
-      console.error("[v0] Initial DummyJSON sync failed:", err)
-    }
-  }
+  // No auto-sync - use /api/ingest to populate catalog
+  const { items: list, count: total } = await fetchListings(filter)
 
   const categories = await fetchCategories()
 

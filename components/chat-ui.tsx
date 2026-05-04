@@ -39,7 +39,7 @@ export function ChatUI({
 
   const { messages, sendMessage, status, error } = useChat({
     id: threadId,
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport: new DefaultChatTransport({ api: "/api/agent" }),
   })
 
   useEffect(() => {
