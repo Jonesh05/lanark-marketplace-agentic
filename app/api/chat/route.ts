@@ -70,13 +70,20 @@ export async function POST(req: Request) {
     "If a tool returns an error, surface it plainly and propose a recovery step.",
   ].join(" ")
 
-  const result = streamText({
-    model: azureChatModel,
-    system,
-    messages: await convertToModelMessages(messages),
-    tools,
-    stopWhen: stepCountIs(8),
-  })
+  try {
+    const result = streamText({
+      model: azureChatModel,
+      system,
+      messages: await convertToModelMessages(messages),
+      tools,
+      stopWhen: stepCountIs(8),
+    })
 
-  return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse()
+  } catch (err) {
+    console.error("[v0] Chat route error:", err)
+    const message =
+      err instanceof Error ? err.message : "An unexpected error occurred"
+    return Response.json({ error: message }, { status: 500 })
+  }
 }

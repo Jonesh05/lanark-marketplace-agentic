@@ -1,15 +1,14 @@
-import { createOpenAI } from "@ai-sdk/openai"
+import { createAzure } from "@ai-sdk/azure"
 
 /**
  * Azure OpenAI provider for the Lanark agent.
  *
- * Uses the @ai-sdk/openai provider with a custom baseURL pointing at
- * Azure's chat completions endpoint. This is the recommended pattern
- * for AI SDK 6 with Azure OpenAI.
+ * Uses @ai-sdk/azure which is purpose-built for Azure OpenAI and correctly
+ * routes to /chat/completions (not /responses like @ai-sdk/openai).
  *
  * Required env vars (configured in .env.local / Vercel project settings):
  *   - AZURE_OPENAI_API_KEY         : the Azure OpenAI resource key
- *   - AZURE_OPENAI_ENDPOINT        : e.g. https://my-resource.openai.azure.com
+ *   - AZURE_OPENAI_ENDPOINT        : e.g. https://jons-lanark-ai.openai.azure.com
  *   - AZURE_OPENAI_DEPLOYMENT_NAME : the deployment id (e.g. gpt-4o-mini)
  */
 
@@ -25,46 +24,39 @@ if (!apiKey || !endpoint || !deploymentName) {
 }
 
 /**
- * Construct the Azure OpenAI base URL for chat completions.
- * Format: https://<resource>.openai.azure.com/openai/deployments/<deployment>
- *
- * The api-version is appended by the provider as a query param.
+ * Extract the resource name from the endpoint URL.
+ * e.g. https://jons-lanark-ai.openai.azure.com → jons-lanark-ai
  */
-function buildAzureBaseUrl(rawEndpoint: string, deployment: string): string {
-  // Normalise endpoint: strip trailing slash
-  const base = rawEndpoint.replace(/\/+$/, "")
-  return `${base}/openai/deployments/${deployment}`
+function extractResourceName(endpointUrl: string): string {
+  try {
+    const url = new URL(endpointUrl)
+    const parts = url.hostname.split(".")
+    return parts[0] // e.g. "jons-lanark-ai"
+  } catch {
+    return endpointUrl
+  }
 }
 
 /**
- * Create an AI SDK-compatible provider that hits Azure OpenAI.
+ * Create the Azure OpenAI provider.
  *
- * We use createOpenAI with:
- *   - baseURL pointing to the Azure deployment
- *   - apiKey set to the Azure resource key
- *   - compatibility mode "compatible" (Azure uses OpenAI-compatible API)
+ * IMPORTANT: We use azure.chat() (not azure()) to ensure the SDK uses
+ * the /chat/completions endpoint. The default azure() uses /responses
+ * which Azure does not support with api-version 2024-10-21.
  */
-const azureProvider = createOpenAI({
-  baseURL: buildAzureBaseUrl(endpoint ?? "", deploymentName),
+const azure = createAzure({
+  resourceName: extractResourceName(endpoint ?? ""),
   apiKey: apiKey ?? "",
-  compatibility: "compatible",
-  // Azure requires api-version as a query param. The provider appends it
-  // automatically when we set the fetch override to include it.
-  fetch: async (url, options) => {
-    const urlWithVersion = new URL(url as string)
-    urlWithVersion.searchParams.set("api-version", "2024-10-21")
-    return fetch(urlWithVersion.toString(), options)
-  },
+  apiVersion: "2024-10-21",
 })
 
 /**
  * Pre-bound chat model pointing at the configured Azure deployment.
  * Use this everywhere instead of hard-coding the deployment name.
  *
- * The model ID passed to azureProvider() is ignored when using a custom
- * baseURL that already includes the deployment, but we pass it for clarity.
+ * We call azure.chat(deployment) to force chat completions endpoint.
  */
-export const azureChatModel = azureProvider("gpt-4o-mini")
+export const azureChatModel = azure.chat(deploymentName)
 
 export const AZURE_DEPLOYMENT_NAME = deploymentName
 export const AZURE_OPENAI_CONFIGURED = Boolean(
