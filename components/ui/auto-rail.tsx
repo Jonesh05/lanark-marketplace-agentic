@@ -22,17 +22,14 @@ export default function AutoRail({
   // embla API scrollNext method. It respects prefers-reduced-motion and
   // pauses on hover / touch / focus for accessibility.
 
-  const context = React.useContext<any>(
-    // import path is relative - carousel exports a context internally.
-    // To avoid circular import issues we access the context via module import above
-    // but here we attempt to re-use the hook if available.
-    // If the hook is not available (older code), gracefully noop.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    (typeof window !== 'undefined' && require('./carousel').useCarousel) || null,
-  )
-
-  const carousel = context
+  let carousel: any = null
+  try {
+    // Will throw if used outside of a Carousel provider - catch and noop.
+    carousel = useCarousel()
+  } catch (e) {
+    // no-op: if not inside a Carousel, AutoRail silently does nothing
+    carousel = null
+  }
   const rafRef = useRef<number | null>(null)
   const lastTime = useRef<number | null>(null)
   const elapsed = useRef(0)
