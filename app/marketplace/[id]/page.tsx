@@ -47,14 +47,22 @@ export default async function ProductPage({
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[1.1fr_1fr]">
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/60 bg-muted">
           {p.image_url ? (
-            <Image
-              src={p.image_url}
-              alt={p.title}
-              fill
-              priority
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="object-cover"
-            />
+            p.image_url.includes("collection.cloudinary.com") ? (
+              <img
+                src={p.image_url}
+                alt={p.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <Image
+                src={p.image_url}
+                alt={p.title}
+                fill
+                priority
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+              />
+            )
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-grid">
               <span className="font-mono text-xs uppercase tracking-widest text-muted-foreground">

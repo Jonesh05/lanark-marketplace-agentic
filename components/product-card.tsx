@@ -11,13 +11,21 @@ export function ProductCard({ product }: { product: Product }) {
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
         {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.title}
-            fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition duration-500 group-hover:scale-[1.04]"
-          />
+          product.image_url.includes("collection.cloudinary.com") ? (
+            <img
+              src={product.image_url}
+              alt={product.title}
+              className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-[1.04]"
+            />
+          ) : (
+            <Image
+              src={product.image_url}
+              alt={product.title}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+              className="object-cover transition duration-500 group-hover:scale-[1.04]"
+            />
+          )
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-grid">
             <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">

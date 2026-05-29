@@ -2,6 +2,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { ProductCard } from "@/components/product-card"
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel"
 import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { ArrowUpRight } from "lucide-react"
@@ -187,10 +188,23 @@ export default async function Home({
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {list.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
+          <div>
+            {/* Horizontal carousel rail - swipe right to browse listings */}
+            <Carousel className="relative">
+              <CarouselContent className="py-2">
+                {list.map((p) => (
+                  <CarouselItem
+                    key={p.id}
+                    className="min-w-[220px] sm:min-w-[280px] md:min-w-[320px] lg:min-w-[360px]"
+                  >
+                    <ProductCard product={p} />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
         )}
       </section>

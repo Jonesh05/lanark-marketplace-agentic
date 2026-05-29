@@ -143,10 +143,11 @@ function CarouselContent({ className, ...props }: React.ComponentProps<'div'>) {
     >
       <div
         className={cn(
-          'flex',
+          'flex cursor-grab active:cursor-grabbing',
           orientation === 'horizontal' ? '-ml-4' : '-mt-4 flex-col',
           className,
         )}
+        style={{ touchAction: 'pan-y' }}
         {...props}
       />
     </div>

@@ -1,0 +1,17 @@
+{
+    "workbench.editor.autoLockGroups": {
+        "default": true,
+        "workbench.editor.chatSession": true,
+        "workbench.editor.chatDebug": true,
+        "workbench.editorinputs.searchEditorInput": true,
+        "agentSessionsWelcomePage": true,
+        "workbench.editor.browser": true,
+        "jupyter-notebook": true,
+        "notebookOutputEditor": true,
+        "workbench.editors.gettingStartedInput": true,
+        "repl": true,
+        "gitlens.rebase": true,
+        "mainThreadWebview-markdown.preview": true,
+        "workbench.input.interactive": true
+    }
+}

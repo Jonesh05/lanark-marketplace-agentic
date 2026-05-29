@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAccount, useDisconnect, useSignMessage } from "wagmi"
 import { useAppKit } from "@reown/appkit/react"
 import { toast } from "sonner"
@@ -27,24 +27,20 @@ function makeNonce() {
 }
 
 export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
-  const [mounted, setMounted] = useState(false)
-  
-  // 1. Esto evita que useAppKit se llame en el servidor
-  const appKit = mounted ? useAppKit() : null 
-  
+  // Call useAppKit unconditionally but catch if it throws (safe during init race)
+  let appKit: any = null
+  try {
+    appKit = useAppKit()
+  } catch (e) {
+    appKit = null
+  }
+
   const { address, isConnected, connector } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
-  
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // 2. Si no ha montado, no renderizamos nada que use los hooks
-  if (!mounted) return null 
 
   async function onSign() {
     if (!address) return
@@ -95,20 +91,26 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
     }
   }
 
-  // Si no ha montado, no renderizamos nada para evitar el error de AppKit en el servidor
-  if (!mounted) return (
-    <Button size="lg" className="h-12 w-full justify-center gap-3" disabled>
-      <Loader2 className="h-4 w-4 animate-spin" />
-      Initializing...
-    </Button>
-  )
+  // Show disabled initializer while AppKit isn't ready
+  if (!appKit) {
+    return (
+      <Button size="lg" className="h-12 w-full justify-center gap-3" disabled>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Initializing...
+      </Button>
+    )
+  }
 
   if (!isConnected || !address) {
+    const openWallet = () => {
+      try { appKit?.open?.() } catch (e) { console.warn("appKit.open failed", e) }
+    }
+
     return (
       <Button
         size="lg"
         className="h-12 w-full justify-between gap-3"
-        onClick={() => appKit.open()} // Usamos appKit.open() de forma segura
+        onClick={openWallet}
         type="button"
       >
         <span className="flex items-center gap-3">

@@ -38,12 +38,15 @@ function initializeAppKit() {
       themeMode: "dark",
     })
     appKitInitialized = true
+    // expose a window flag so client components can detect initialization
+    try { (window as any).__reownAppKitInitialized = true } catch {}
   } catch (e) {
     // AppKit may throw if already initialized
     if (!(e instanceof Error && e.message.includes("already"))) {
       console.error("[ReownProvider] AppKit init error:", e)
     }
     appKitInitialized = true
+    try { (window as any).__reownAppKitInitialized = true } catch {}
   }
 }
 
@@ -71,28 +74,24 @@ export function ReownProvider({
     cookies,
   )
 
-  // Always render children to maintain consistent hook order across renders.
-  // Use CSS to show/hide instead of conditional rendering to avoid
-  // "Rendered more hooks than during the previous render" error.
+  // Render children only once AppKit is initialized to ensure useAppKit
+  // can be used safely in descendants. The WalletShell wrapper ensures
+  // this provider is present only for routes that need wagmi/AppKit.
   return (
     <WagmiProvider
       config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
       <QueryClientProvider client={queryClient}>
-        {/* Loading indicator - shown only before AppKit is ready */}
-        <div
-          className="flex min-h-svh items-center justify-center"
-          style={{ display: ready ? "none" : "flex" }}
-        >
-          <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground animate-pulse">
-            Loading wallet…
-          </span>
-        </div>
-        {/* Children always rendered to preserve hook order, hidden until ready */}
-        <div style={{ display: ready ? "contents" : "none" }}>
-          {children}
-        </div>
+        {!ready ? (
+          <div className="flex min-h-svh items-center justify-center">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground animate-pulse">
+              Loading wallet…
+            </span>
+          </div>
+        ) : (
+          <>{children}</>
+        )}
       </QueryClientProvider>
     </WagmiProvider>
   )
