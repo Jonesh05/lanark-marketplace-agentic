@@ -1,7 +1,6 @@
 /**
  * Format an integer-cents amount as a localized currency string.
- * Listings are stored as `price_cents` in their native currency (USD for
- * the DummyJSON catalog, COP for native shops). Settlement happens in
+ * Listings are stored as `price_cents` in their native currency (e.g., USD for some external imports, COP for native shops). Settlement happens in
  * cUSD on-chain.
  */
 export function formatPrice(cents: number, currency = "USD"): string {

@@ -52,10 +52,10 @@ export function buildTools(deps: AgentDeps) {
   return {
     searchProducts: tool({
       description:
-        "Search active marketplace listings. Supports free text, price ceiling (in the catalog currency, USD for DummyJSON imports), category, and brand filters. Returns the highest-rated matches first.",
+        "Search active marketplace listings. Supports free text, price ceiling (in the listing's native currency), category, and brand filters. Returns the highest-rated matches first.",
       inputSchema: z.object({
         query: z.string().nullable(),
-        maxPrice: z.number().nullable().describe("Max price in the catalog currency (USD for DummyJSON)."),
+        maxPrice: z.number().nullable().describe("Max price in the listing's native currency."),
         category: z.string().nullable(),
         brand: z.string().nullable(),
         limit: z.number().int().min(1).max(20).default(8),
