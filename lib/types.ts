@@ -26,7 +26,7 @@ export interface SmartWallet {
   created_at: string
 }
 
-export type ProductSource = "native" | "dummyjson"
+export type ProductSource = "native" | "external"
 
 export interface Product {
   id: string
