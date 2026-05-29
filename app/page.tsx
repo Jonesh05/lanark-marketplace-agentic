@@ -7,6 +7,7 @@ import MobileBand from "@/components/ui/mobile-band"
 import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { ArrowUpRight } from "lucide-react"
+import copy from "@/lib/copy/en"
 
 export const dynamic = "force-dynamic"
 
@@ -86,24 +87,21 @@ export default async function Home({
         <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-4 py-20 sm:py-28">
           <div className="flex items-center gap-3 self-start font-mono text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
             <span className="h-1 w-6 bg-accent" />
-            agentic · cUSD · celo mainnet
+            {copy.hero.preline}
           </div>
           <h1 className="max-w-3xl font-serif text-6xl leading-[0.95] tracking-tight text-balance sm:text-7xl">
-            A marketplace where the
-            <span className="italic text-accent"> agent does the work</span>.
+            {copy.hero.title}
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
-            Browse a real product catalog, place an offer in plain English,
-            and let Lanark&apos;s agent settle the trade in cUSD on Celo —
-            no seed phrase, no spreadsheet, gas sponsored on your first trade.
+            {copy.hero.subtitle}
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg" className="h-11">
-              <Link href="/auth/login">Open the marketplace</Link>
+              <Link href="/auth/login">{copy.hero.ctaPrimary}</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="h-11">
               <Link href="/auth/login?role=shopkeeper" className="gap-2">
-                List inventory
+                {copy.hero.ctaSecondary}
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>

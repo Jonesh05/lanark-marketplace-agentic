@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header"
 import { formatPrice } from "@/lib/format"
 import { OfferForm } from "@/components/offer-form"
 import type { Product } from "@/lib/types"
+import copy from "@/lib/copy/en"
 
 export const dynamic = "force-dynamic"
 
@@ -94,7 +95,7 @@ export default async function ProductPage({
           </div>
 
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {p.description || "No description provided."}
+            {p.description || copy.fallback.noDescription}
           </p>
 
           <dl className="grid grid-cols-3 gap-4 border-t border-border/60 pt-4 text-xs">
@@ -109,12 +110,7 @@ export default async function ProductPage({
                 Shop
               </dt>
               <dd className="mt-1 line-clamp-1">
-                {shop?.display_name ??
-                  (p.brand
-                    ? p.brand
-                    : p.shopkeeper_id == null
-                      ? "Sablon agent (auto)"
-                      : "Anonymous shop")}
+                {shop?.display_name ?? (p.brand ? p.brand : copy.fallback.anonymousShop)}
               </dd>
             </div>
             <div>

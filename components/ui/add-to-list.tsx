@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState } from "react"
+import { toast } from "sonner"
+import copy from "@/lib/copy/en"
 
 export default function AddToListButton({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false)
@@ -16,14 +18,13 @@ export default function AddToListButton({ productId }: { productId: string }) {
       const json = await res.json()
       if (!res.ok || !json.ok) {
         console.error("Add to list failed", json)
-        alert("No se pudo agregar a la lista")
+        toast.error(copy.addToList.addFailed)
       } else {
-        // Minimal UX for now
-        alert("Agregado a tu lista")
+        toast.success(copy.addToList.added)
       }
     } catch (e) {
       console.error(e)
-      alert("Error de red")
+      toast.error(copy.addToList.networkError)
     } finally {
       setLoading(false)
     }
@@ -34,10 +35,10 @@ export default function AddToListButton({ productId }: { productId: string }) {
       onClick={handleAdd}
       disabled={loading}
       className="inline-flex items-center justify-center rounded px-2 py-1 text-xs border border-border/40 bg-card/20 hover:bg-card/30"
-      aria-label="Agregar a la lista"
+      aria-label={copy.addToList.ariaLabel}
       type="button"
     >
-      {loading ? "..." : "Agregar"}
+      {loading ? copy.addToList.adding : copy.addToList.addButton}
     </button>
   )
 }
