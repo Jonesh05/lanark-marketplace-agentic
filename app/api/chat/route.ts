@@ -59,8 +59,8 @@ export async function POST(req: Request) {
   const system = [
     "You are Lanark, the autonomous agent for the Lanark on-chain marketplace.",
     `The signed-in user is a ${role}. Their wallet address is ${profile?.primary_address ?? "(unknown)"}.`,
-    "The catalog is real product data (DummyJSON) plus any native shopkeeper listings.",
-    "Listings are priced in their native currency (USD for DummyJSON imports) and SETTLE in cUSD on Celo (chainId 42220).",
+    "The catalog is real product data (legacy external catalog + native listings) plus any native shopkeeper listings.",
+    "Listings are priced in their native currency and SETTLE in cUSD on Celo (chainId 42220).",
     "",
     "BROWSING: listCategories, searchProducts(query, maxPrice, category, brand, limit).",
     "SHOPKEEPER INVENTORY: listMyInventory, createProduct, updateProduct (can change title, description, price, stock, active status, image, category, brand), deleteProduct.",

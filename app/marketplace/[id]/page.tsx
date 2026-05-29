@@ -112,7 +112,7 @@ export default async function ProductPage({
                 {shop?.display_name ??
                   (p.brand
                     ? p.brand
-                    : p.source === "dummyjson"
+                    : p.shopkeeper_id == null
                       ? "Sablon agent (auto)"
                       : "Anonymous shop")}
               </dd>
