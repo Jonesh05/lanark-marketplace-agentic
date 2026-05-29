@@ -11,7 +11,7 @@ export default function AddToListButton({ productId }: { productId: string }) {
       const res = await fetch("/api/shopping-list", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "addItem", product_id: productId, qty: 1 }),
+        body: JSON.stringify({ product_id: productId, quantity: 1 }),
       })
       const json = await res.json()
       if (!res.ok || !json.ok) {
