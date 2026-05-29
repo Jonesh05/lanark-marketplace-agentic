@@ -180,6 +180,25 @@ async function handle(req: NextRequest) {
     )
   }
 
+  // Enforce vendor-lock: if an existing profile has a role set that differs
+  // from the requested role, disallow changing it here. This prevents clients
+  // from overwriting a seller/shopkeeper role after initial registration.
+  try {
+    const { data: existingProfile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (existingProfile?.role && existingProfile.role !== role) {
+      return NextResponse.json({ ok: false, error: 'Role change forbidden' }, { status: 403 })
+    }
+  } catch (e) {
+    // If the check fails for any reason, continue - the upsert later is the
+    // authoritative operation. We intentionally avoid blocking sign-in on
+    // transient admin errors, but surface explicit role conflicts above.
+  }
+
   // Create route handler client that properly captures cookies
   const { supabase, createResponse } = await createRouteHandlerClient()
 
