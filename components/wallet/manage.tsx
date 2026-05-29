@@ -26,7 +26,14 @@ export function WalletManage({
   isGuest: boolean
 }) {
   const { address, isConnected, chain } = useAccount()
-  const { open } = useAppKit()
+  // guard useAppKit to avoid init race where AppKit throws during startup
+  let appKit: any = null
+  try {
+    appKit = useAppKit()
+  } catch (e) {
+    appKit = null
+  }
+  const open = appKit?.open?.bind(appKit)
   const { disconnectAsync } = useDisconnect()
   const [balance, setBalance] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)

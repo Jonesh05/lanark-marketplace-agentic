@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import type { Product } from "@/lib/types"
 import { formatPrice } from "@/lib/format"
+import AddToListButton from "@/components/ui/add-to-list"
 
 export function ProductCard({ product }: { product: Product }) {
   return (
@@ -42,9 +43,12 @@ export function ProductCard({ product }: { product: Product }) {
           <h3 className="line-clamp-1 text-sm font-medium text-balance">
             {product.title}
           </h3>
-          <span className="shrink-0 font-mono text-xs tabular-nums text-foreground">
-            {formatPrice(product.price_cents, product.currency)}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 font-mono text-xs tabular-nums text-foreground">
+              {formatPrice(product.price_cents, product.currency)}
+            </span>
+            <AddToListButton productId={product.id} />
+          </div>
         </div>
         <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {product.description || "No description provided."}
