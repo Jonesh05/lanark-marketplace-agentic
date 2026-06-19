@@ -37,8 +37,8 @@ export const projectId =
   ""
 
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
-  celoSepolia,
   celo,
+  celoSepolia,
   celoAlfajores,
 ]
 

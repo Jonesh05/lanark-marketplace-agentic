@@ -19,4 +19,5 @@ celo_sepolia = "${CELO_RPC_URL}"
 celo = "https://forno.celo.org"
 
 [etherscan]
+celo = { key = "${CELOSCAN_API_KEY}", url = "https://api.celoscan.io/api", chain = 42220 }
 celo_sepolia = { key = "${CELOSCAN_API_KEY}", url = "https://api-celo-sepolia.blockscout.com/api", chain = 11142220 }

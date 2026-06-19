@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2, Wallet, ExternalLink, CheckCircle2 } from "lucide-react"
 import { prepareSettlement, recordDeposit, releaseOrder } from "@/app/actions/settlement"
 import { useIsMiniPay } from "@/hooks/use-minipay"
+import { explorerTxUrl, CELO_SEPOLIA_CHAIN_ID } from "@/lib/celo"
 import {
   ESCROW_ABI,
   ERC20_FAUCET_ABI,
@@ -24,11 +25,6 @@ import {
 function reader() {
   return createPublicClient({ transport: http(PUBLIC_RPC_URL) })
 }
-
-const EXPLORER_TX = (hash: string) =>
-  PUBLIC_CHAIN_ID === 11142220
-    ? `https://celo-sepolia.blockscout.com/tx/${hash}`
-    : `https://celoscan.io/tx/${hash}`
 
 type Phase =
   | "idle"
@@ -132,7 +128,7 @@ export function SettleOrderButton({
         args: [account],
       })) as bigint
       if (bal < amount) {
-        if (PUBLIC_CHAIN_ID === 11142220) {
+        if (PUBLIC_CHAIN_ID === CELO_SEPOLIA_CHAIN_ID) {
           setPhase("funding")
           toast.message("Acuñando fondos de prueba en tu wallet…")
           try {
@@ -194,7 +190,7 @@ export function SettleOrderButton({
         return
       }
 
-      setTxUrl(rec.txUrl ?? EXPLORER_TX(depositHash))
+      setTxUrl(rec.txUrl ?? explorerTxUrl(depositHash))
       setPhase("done")
       toast.success("Pago confirmado y protegido en garantía.")
       onSettled?.()

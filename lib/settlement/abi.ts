@@ -71,12 +71,12 @@ export function orderRefToBytes32(orderId: string): Hex {
 }
 
 export const PUBLIC_CHAIN_ID = Number(
-  process.env.NEXT_PUBLIC_LANARK_CHAIN_ID ?? "11142220",
+  process.env.NEXT_PUBLIC_LANARK_CHAIN_ID ?? "42220",
 )
 
 export const PUBLIC_RPC_URL =
   process.env.NEXT_PUBLIC_CELO_RPC_URL ??
-  "https://forno.celo-sepolia.celo-testnet.org"
+  "https://forno.celo.org"
 
 export function publicFactoryAddress(): `0x${string}` | null {
   const raw = process.env.NEXT_PUBLIC_LANARK_ESCROW_FACTORY

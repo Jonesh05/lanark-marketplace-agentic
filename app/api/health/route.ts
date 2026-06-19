@@ -24,7 +24,7 @@ export async function GET() {
       settlementSymbol: SETTLEMENT_SYMBOL,
     },
     minipay: {
-      testnetMode: "Enable 'Use Testnet' in MiniPay Developer Settings (Celo Sepolia, chain 11142220)",
+      mainnet: "Production runs on Celo Mainnet (chain 42220). MiniPay Developer Mode: turn testnet OFF.",
       loadUrl: "https://lanark-marketplace-agentic.vercel.app/auth/login",
     },
     timestamp: new Date().toISOString(),

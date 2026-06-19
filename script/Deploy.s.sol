@@ -6,19 +6,20 @@ import {LanarkEscrowFactory} from "../contracts/LanarkEscrowFactory.sol";
 import {LanarkFeeCollector} from "../contracts/LanarkFeeCollector.sol";
 import {MockERC20} from "../contracts/MockERC20.sol";
 
-/// @notice Deploys the LANARK settlement stack to Celo Sepolia.
+/// @notice Deploys the LANARK settlement stack to Celo (mainnet or testnet).
 ///
 /// Required env:
-///   PRIVATE_KEY          deployer key
+///   PRIVATE_KEY          deployer key (funded with native CELO for gas)
 ///   LANARK_TREASURY      address that ultimately receives fees
 ///   LANARK_ARBITER       dispute arbiter
 ///   LANARK_FACTORY_OWNER owner (settlement worker) of the factory
 ///   LANARK_FEE_BPS       protocol fee (e.g. 100 = 1%)
-///   LANARK_SETTLEMENT_TOKEN  optional; if empty, a MockERC20 is deployed
+///   LANARK_SETTLEMENT_TOKEN  on mainnet: canonical cUSD
+///                            0x765DE816845861e75A25fCA122bb6898B8B1282a
+///                            on testnet: leave empty to deploy MockERC20
 ///
-/// Run:
-///   forge script script/Deploy.s.sol:Deploy \
-///     --rpc-url celo_sepolia --broadcast
+/// Run (mainnet):
+///   bash scripts/deploy-contracts.sh mainnet
 contract Deploy is Script {
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");

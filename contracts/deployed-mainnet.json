@@ -1,0 +1,18 @@
+{
+  "network": "celo-mainnet",
+  "chainId": 42220,
+  "deployedAt": "2026-06-19T18:00:00Z",
+  "deployer": "0x11792c4AB19a58123B097dA6e959b6741C3fC5e9",
+  "settlementToken": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+  "lanarkFeeCollector": "0x5Df842b2f40B1fE5F7321E6209F10c16f3Df6563",
+  "lanarkEscrowFactory": "0x5973Da83627908d42114D5876F4ad8Bc3D4D8D45",
+  "lanarkEscrowImplementation": "0x5c132fa52d2938d33cc8c49b736696267112bb23",
+  "deploymentTxHash": "0xdf5185663259b09abe3050d9a991849d46b312c293ec8087f301f3163c8e5419",
+  "feeCollectorTxHash": "0xe451bfa5a7a9aaeb6229f12bf71bc45c49fdc97a062371f46b92c6f8b4b28ba0",
+  "blockNumber": 69992310,
+  "celoscan": {
+    "factory": "https://celoscan.io/address/0x5973Da83627908d42114D5876F4ad8Bc3D4D8D45",
+    "feeCollector": "https://celoscan.io/address/0x5Df842b2f40B1fE5F7321E6209F10c16f3Df6563",
+    "factoryTx": "https://celoscan.io/tx/0xdf5185663259b09abe3050d9a991849d46b312c293ec8087f301f3163c8e5419"
+  }
+}
