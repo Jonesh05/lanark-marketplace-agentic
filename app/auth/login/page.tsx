@@ -46,7 +46,8 @@ export default async function LoginPage({
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Sign in to place offers, list inventory, and let the agent settle
-            on Celo for you. Gas is sponsored on your first trade.
+            sales in USDm on Celo. Your cart and purchase history stay
+            off-chain; only the sale settlement is recorded on-chain.
           </p>
         </div>
 
@@ -54,8 +55,8 @@ export default async function LoginPage({
 
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           By continuing you agree that signing the message proves wallet
-          ownership. We never custody your keys; settlement happens through an
-          ERC-4337 smart account on Celo.
+          ownership. We never custody your keys; sale settlement happens in
+          USDm on Celo.
         </p>
       </div>
     </main>

@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { createRouteHandlerClient } from "@/lib/supabase/route"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { consumeNonce } from "@/lib/auth/nonce-store"
 import { CELO_CHAIN_ID, publicClient } from "@/lib/celo"
 
 export const runtime = "nodejs"
@@ -30,14 +31,9 @@ export async function POST(req: NextRequest) {
     return await handle(req)
   } catch (err: any) {
     // Final safety net: return valid JSON so the client never sees empty body
+    console.error("[wallet] sign-in error:", err)
     return NextResponse.json(
-      {
-        ok: false,
-        error:
-          typeof err?.message === "string"
-            ? err.message
-            : "Unexpected server error during sign-in",
-      },
+      { ok: false, error: "Server error during sign-in" },
       { status: 500 },
     )
   }
@@ -74,47 +70,43 @@ async function handle(req: NextRequest) {
     )
   }
 
-  // Smart Contract Accounts (SCAs) from Reown social login use EIP-6492/EIP-1271.
-  // For SCAs, we trust the signature if: (1) Reown authenticated the user, and
-  // (2) the message format is correct. The on-chain verification requires the
-  // contract to be deployed, but Reown may use counterfactual addresses.
-  //
-  // For EOA wallets, we verify the signature using standard ECDSA.
-  let valid = false
+  // Single-use nonce gate: consumeNonce verifies the nonce was issued by this
+  // server, is bound to this address, is within TTL, and atomically burns it
+  // so it cannot be replayed (SEC-02). No DB required; the store lives in the
+  // shared Node process (lib/auth/nonce-store.ts).
+  const admin = createAdminClient()
+  const nonceCheck = consumeNonce(nonce, address)
+  if (!nonceCheck.ok) {
+    return NextResponse.json(
+      { ok: false, error: nonceCheck.reason },
+      { status: 401 },
+    )
+  }
 
-  if (kind === "sca") {
-    // For Smart Contract Accounts (social login), trust Reown's authentication
-    // since the contract may not be deployed yet (counterfactual address).
-    // The message binding check above ensures the address/nonce are correct.
-    valid = true
-  } else {
-    // Standard EOA verification
+  // Verify the signature for EVERY account type — no kind is trusted blindly
+  // (SEC-01). EOAs verify via ECDSA; smart accounts verify on-chain through
+  // ERC-1271 / ERC-6492 (viem resolves 6492 wrappers and counterfactual
+  // deployments). A smart account whose signature cannot be proven is rejected.
+  let valid = false
+  try {
+    valid = await verifyMessage({
+      address,
+      message,
+      signature: signature as `0x${string}`,
+    })
+  } catch {
+    // Not a valid EOA signature; fall through to on-chain verification.
+  }
+  if (!valid) {
     try {
-      valid = await verifyMessage({
+      const client = publicClient()
+      valid = await client.verifyMessage({
         address,
         message,
         signature: signature as `0x${string}`,
       })
     } catch {
-      // ECDSA failed
-    }
-
-    // Fallback: check if it's a deployed contract and try EIP-1271
-    if (!valid) {
-      try {
-        const client = publicClient()
-        const bytecode = await client.getCode({ address })
-        if (bytecode && bytecode !== "0x") {
-          const result = await client.verifyMessage({
-            address,
-            message,
-            signature: signature as `0x${string}`,
-          })
-          valid = result
-        }
-      } catch {
-        // On-chain verification failed
-      }
+      // On-chain (ERC-1271/6492) verification failed.
     }
   }
 
@@ -125,46 +117,72 @@ async function handle(req: NextRequest) {
     )
   }
 
-  const admin = createAdminClient()
-  const email = `${address.toLowerCase()}@wallet.lanark.local`
+  const syntheticEmail = `${address.toLowerCase()}@wallet.lanark.local`
 
   let userId: string | null = null
   let isNewUser = false
+  // Email used to mint the session. For a RETURNING wallet we must use the auth
+  // user's REAL email, which may carry a legacy domain from an older deploy
+  // (e.g. @wallet.sablon.local). Minting with the new synthetic email would
+  // otherwise provision a SECOND auth user for the same wallet — the exact
+  // duplication that orphaned a seller's products from their dashboard.
+  let sessionEmail = syntheticEmail
 
-  const created = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: {
-      role,
-      is_guest: kind === "guest",
-      primary_address: address,
-      wallet_kind: kind,
-      display_name: `${address.slice(0, 6)}…${address.slice(-4)}`,
-    },
-  })
+  // 1) Resolve identity by ADDRESS first — the wallet, not the email, is the
+  //    stable key. smart_wallets is unique on (address, chain_id), so this is
+  //    the authoritative lookup and is immune to email-domain changes.
+  const { data: walletRow } = await admin
+    .from("smart_wallets")
+    .select("user_id")
+    .eq("address", address)
+    .maybeSingle()
+  if (walletRow?.user_id) userId = walletRow.user_id as string
 
-  if (created.data?.user) {
-    userId = created.data.user.id
-    isNewUser = true
-  } else if (created.error) {
-    // Existing user - find them.
-    const { data: existing } = await admin
+  // 2) Fall back to a profile already bound to this address.
+  if (!userId) {
+    const { data: profRows } = await admin
       .from("profiles")
       .select("id")
       .eq("primary_address", address)
-      .maybeSingle()
-    if (existing?.id) {
-      userId = existing.id
+      .limit(1)
+    if (profRows && profRows.length > 0) userId = profRows[0].id as string
+  }
+
+  if (userId) {
+    // Returning wallet: mint the session against the user's real email so we
+    // never branch to a different auth user.
+    const { data: existingUser } = await admin.auth.admin.getUserById(userId)
+    if (existingUser?.user?.email) sessionEmail = existingUser.user.email
+  } else {
+    // 3) Genuinely new wallet: create the user with the synthetic email.
+    const created = await admin.auth.admin.createUser({
+      email: syntheticEmail,
+      email_confirm: true,
+      user_metadata: {
+        role,
+        is_guest: kind === "guest",
+        primary_address: address,
+        wallet_kind: kind,
+        display_name: `${address.slice(0, 6)}…${address.slice(-4)}`,
+      },
+    })
+    if (created.data?.user) {
+      userId = created.data.user.id
+      isNewUser = true
+      sessionEmail = syntheticEmail
     } else {
+      // Race: another request created the user concurrently. Re-resolve by the
+      // synthetic email we just attempted.
       let page = 1
       while (page < 20 && !userId) {
         const { data } = await admin.auth.admin.listUsers({
           page,
           perPage: 200,
         })
-        const hit = data?.users.find((u) => u.email === email)
+        const hit = data?.users.find((u) => u.email === syntheticEmail)
         if (hit) {
           userId = hit.id
+          sessionEmail = hit.email ?? syntheticEmail
           break
         }
         if (!data?.users || data.users.length < 200) break
@@ -203,7 +221,10 @@ async function handle(req: NextRequest) {
   const { supabase, createResponse } = await createRouteHandlerClient()
 
   // Mint the session using generateLink + verifyOtp
-  const link = await admin.auth.admin.generateLink({ type: "magiclink", email })
+  const link = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email: sessionEmail,
+  })
   if (link.error || !link.data.properties?.hashed_token) {
     return NextResponse.json(
       { ok: false, error: "Could not start session" },

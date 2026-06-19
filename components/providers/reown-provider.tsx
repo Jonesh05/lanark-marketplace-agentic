@@ -6,6 +6,7 @@ import { createAppKit } from "@reown/appkit/react"
 import { cookieToInitialState, WagmiProvider, type Config } from "wagmi"
 
 import { wagmiAdapter, projectId, networks } from "@/lib/reown/config"
+import { MiniPayAutoConnect } from "./minipay-autoconnect"
 
 const queryClient = new QueryClient()
 
@@ -90,7 +91,10 @@ export function ReownProvider({
             </span>
           </div>
         ) : (
-          <>{children}</>
+          <>
+            <MiniPayAutoConnect />
+            {children}
+          </>
         )}
       </QueryClientProvider>
     </WagmiProvider>

@@ -28,21 +28,21 @@ export async function GET() {
     ? supabase
         .from("offers")
         .select(
-          "id,qty,amount_cusd_micro,status,created_at,products!inner(id,title,shopkeeper_id)",
+          "id,qty,amount_cusd_wei,status,created_at,products!inner(id,title,shopkeeper_id)",
         )
         .eq("products.shopkeeper_id", user.id)
         .order("created_at", { ascending: false })
         .limit(8)
     : supabase
         .from("offers")
-        .select("id,qty,amount_cusd_micro,status,created_at,products(id,title)")
+        .select("id,qty,amount_cusd_wei,status,created_at,products(id,title)")
         .eq("client_id", user.id)
         .order("created_at", { ascending: false })
         .limit(8)
 
   const ordersQuery = supabase
     .from("orders")
-    .select("id,qty,amount_cusd_micro,status,tx_hash,created_at,products(title)")
+    .select("id,qty,amount_cusd_wei,status,tx_hash,created_at,products(title)")
     .eq(isShop ? "shopkeeper_id" : "client_id", user.id)
     .order("created_at", { ascending: false })
     .limit(8)

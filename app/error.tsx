@@ -2,7 +2,11 @@
 
 import { useEffect } from "react"
 import Link from "next/link"
+import * as Sentry from "@sentry/nextjs"
 import { Button } from "@/components/ui/button"
+
+const CHUNK_RE =
+  /ChunkLoadError|Loading chunk|Failed to load chunk|dynamically imported module|importing a module script failed/i
 
 export default function GlobalError({
   error,
@@ -12,7 +16,25 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("[v0] root error:", error)
+    Sentry.captureException(error)
+    console.error("[lanark] root error:", error)
+
+    const text = `${error?.name ?? ""} ${error?.message ?? ""}`
+    const isChunk = CHUNK_RE.test(text)
+    if (typeof window === "undefined") return
+
+    // A stale/failed code chunk (common after a deploy, or when an on-demand
+    // wallet-modal chunk 404s in dev) is recoverable: reload once to pull the
+    // fresh manifest. Guard against an infinite reload loop.
+    if (isChunk) {
+      const key = "lanark:chunk-reload"
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1")
+        window.location.reload()
+      }
+    } else {
+      sessionStorage.removeItem("lanark:chunk-reload")
+    }
   }, [error])
 
   return (

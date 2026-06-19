@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
 
 type Item = {
   id: string
@@ -11,6 +12,7 @@ type Item = {
 export default function ShoppingList() {
   const [items, setItems] = React.useState<Item[]>([])
   const [loading, setLoading] = React.useState(false)
+  const [pendingId, setPendingId] = React.useState<string | null>(null)
   const [productId, setProductId] = React.useState('')
   const [quantity, setQuantity] = React.useState(1)
 
@@ -20,6 +22,9 @@ export default function ShoppingList() {
       const res = await fetch('/api/shopping-list')
       const data = await res.json()
       if (data.ok) setItems(data.items ?? [])
+      else toast.error('Could not load your list')
+    } catch {
+      toast.error('Could not load your list')
     } finally {
       setLoading(false)
     }
@@ -31,33 +36,60 @@ export default function ShoppingList() {
 
   async function addItem() {
     if (!productId) return
-    const res = await fetch('/api/shopping-list', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ product_id: productId, quantity }),
-    })
-    const data = await res.json()
-    if (data.ok) setItems((s) => [data.item, ...s])
+    try {
+      const res = await fetch('/api/shopping-list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, quantity }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setItems((s) => [data.item, ...s])
+        setProductId('')
+      } else {
+        toast.error('Could not add to the list')
+      }
+    } catch {
+      toast.error('Could not add to the list')
+    }
   }
 
   async function removeItem(id: string) {
-    const res = await fetch('/api/shopping-list', {
-      method: 'DELETE',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    const data = await res.json()
-    if (data.ok) setItems((s) => s.filter((it) => it.id !== id))
+    if (pendingId) return
+    setPendingId(id)
+    try {
+      const res = await fetch('/api/shopping-list', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const data = await res.json()
+      if (data.ok) setItems((s) => s.filter((it) => it.id !== id))
+      else toast.error('Could not remove the item')
+    } catch {
+      toast.error('Could not remove the item')
+    } finally {
+      setPendingId(null)
+    }
   }
 
   async function updateQuantity(id: string, qty: number) {
-    const res = await fetch('/api/shopping-list', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, quantity: qty }),
-    })
-    const data = await res.json()
-    if (data.ok) setItems((s) => s.map((it) => (it.id === id ? data.item : it)))
+    if (pendingId) return
+    setPendingId(id)
+    try {
+      const res = await fetch('/api/shopping-list', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id, quantity: qty }),
+      })
+      const data = await res.json()
+      if (data.ok) setItems((s) => s.map((it) => (it.id === id ? data.item : it)))
+      else toast.error('Could not update the quantity')
+    } catch {
+      toast.error('Could not update the quantity')
+    } finally {
+      setPendingId(null)
+    }
   }
 
   return (
@@ -96,9 +128,9 @@ export default function ShoppingList() {
                   <div className="text-sm text-muted-foreground">Qty: {it.quantity}</div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="btn" onClick={() => updateQuantity(it.id, it.quantity - 1)} disabled={it.quantity <= 1}>-</button>
-                  <button className="btn" onClick={() => updateQuantity(it.id, it.quantity + 1)}>+</button>
-                  <button className="btn btn-ghost" onClick={() => removeItem(it.id)}>Remove</button>
+                  <button className="btn" onClick={() => updateQuantity(it.id, it.quantity - 1)} disabled={it.quantity <= 1 || pendingId === it.id}>-</button>
+                  <button className="btn" onClick={() => updateQuantity(it.id, it.quantity + 1)} disabled={pendingId === it.id}>+</button>
+                  <button className="btn btn-ghost" onClick={() => removeItem(it.id)} disabled={pendingId === it.id}>Remove</button>
                 </div>
               </li>
             ))}

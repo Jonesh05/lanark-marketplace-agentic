@@ -1,7 +1,28 @@
 import { cookieStorage, createStorage } from "@wagmi/core"
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi"
 import { celo, celoAlfajores } from "@reown/appkit/networks"
+import { defineChain } from "@reown/appkit/networks"
 import type { AppKitNetwork } from "@reown/appkit/networks"
+
+/**
+ * Celo Sepolia testnet (OP-stack), the active settlement chain. Alfajores is
+ * deprecated; the buyer's wallet must be able to switch here to fund escrows,
+ * so it is registered alongside mainnet.
+ */
+export const celoSepolia = defineChain({
+  id: 11142220,
+  caipNetworkId: "eip155:11142220",
+  chainNamespace: "eip155",
+  name: "Celo Sepolia",
+  nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://forno.celo-sepolia.celo-testnet.org"] },
+  },
+  blockExplorers: {
+    default: { name: "Blockscout", url: "https://celo-sepolia.blockscout.com" },
+  },
+  testnet: true,
+}) as AppKitNetwork
 
 /**
  * Reown / WalletConnect project ID. Pulled from either
@@ -16,6 +37,7 @@ export const projectId =
   ""
 
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [
+  celoSepolia,
   celo,
   celoAlfajores,
 ]

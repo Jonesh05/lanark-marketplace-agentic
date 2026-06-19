@@ -1,8 +1,10 @@
 import Link from "next/link"
 import type { Offer, Order, Profile } from "@/lib/types"
 import { formatPrice, shortAddress } from "@/lib/format"
-import { microToCusd } from "@/lib/celo"
+import { cusdWeiToHuman, SETTLEMENT_SYMBOL, explorerTxUrl } from "@/lib/celo"
 import { Button } from "@/components/ui/button"
+import { AuthorizeOrderButton } from "@/components/dashboard/authorize-order"
+import { SettleOrderButton, ReleaseOrderButton } from "@/components/dashboard/settle-order"
 
 export function ClientDashboard({
   profile,
@@ -14,10 +16,11 @@ export function ClientDashboard({
   orders: Order[]
 }) {
   const pending = offers.filter((o) => o.status === "pending").length
-  const settled = orders.filter((o) => o.status === "confirmed").length
+  const paidStates = ["escrowed", "settled", "confirmed"]
+  const settled = orders.filter((o) => paidStates.includes(o.status)).length
   const totalSpent = orders
-    .filter((o) => o.status === "confirmed")
-    .reduce((s, o) => s + o.amount_cusd_micro, 0)
+    .filter((o) => paidStates.includes(o.status))
+    .reduce((s, o) => s + (o.amount_cusd_wei ? BigInt(o.amount_cusd_wei) : BigInt(0)), BigInt(0))
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-10">
@@ -41,7 +44,7 @@ export function ClientDashboard({
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Open offers" value={pending.toString()} accent />
         <Stat label="Completed orders" value={settled.toString()} />
-        <Stat label="Spent (cUSD)" value={microToCusd(totalSpent)} mono />
+        <Stat label={`Spent (${SETTLEMENT_SYMBOL})`} value={cusdWeiToHuman(totalSpent)} mono />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -76,7 +79,7 @@ export function ClientDashboard({
                       {prod
                         ? formatPrice(prod.price_cents, prod.currency)
                         : "—"}{" "}
-                      · offer {microToCusd(o.amount_cusd_micro)} cUSD
+                      · offer {cusdWeiToHuman(o.amount_cusd_wei)} {SETTLEMENT_SYMBOL}
                     </span>
                   </Link>
                   <StatusPill status={o.status} />
@@ -104,13 +107,42 @@ export function ClientDashboard({
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="truncate text-sm">
                     {(o as any).products?.title ?? "Order"}
+                    {(o as any).purchase_ref ? (
+                      <span className="ml-2 font-mono text-[10px] normal-case text-muted-foreground">
+                        {(o as any).purchase_ref}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                    {microToCusd(o.amount_cusd_micro)} cUSD ·{" "}
-                    {o.tx_hash ? shortAddress(o.tx_hash) : "no tx"}
+                    {cusdWeiToHuman(o.amount_cusd_wei)} {SETTLEMENT_SYMBOL}
+                    {" · "}
+                    {o.tx_hash ? (
+                      <a
+                        href={explorerTxUrl(o.tx_hash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent normal-case underline-offset-2 hover:underline"
+                      >
+                        {shortAddress(o.tx_hash)} ↗
+                      </a>
+                    ) : (
+                      "sin tx"
+                    )}
                   </span>
                 </div>
-                <StatusPill status={o.status} />
+                <div className="flex items-center gap-3">
+                  {o.status === "preinscribed" && (
+                    <AuthorizeOrderButton orderId={o.id} />
+                  )}
+                  {(o.status === "pending" ||
+                    o.status === "awaiting_settlement") && (
+                    <SettleOrderButton orderId={o.id} />
+                  )}
+                  {o.status === "escrowed" && (
+                    <ReleaseOrderButton orderId={o.id} />
+                  )}
+                  <StatusPill status={o.status} />
+                </div>
               </li>
             ))}
           </ul>
@@ -157,14 +189,26 @@ function StatusPill({ status }: { status: string }) {
     expired: "border-border/60 text-muted-foreground",
     settled: "border-accent/40 text-accent",
     confirmed: "border-accent/40 text-accent",
+    escrowed: "border-emerald-500/40 text-emerald-400",
     submitted: "border-border/60 text-muted-foreground",
+    preinscribed: "border-amber-500/40 text-amber-400",
+    awaiting_settlement: "border-amber-500/40 text-amber-400",
+    disputed: "border-destructive/40 text-destructive",
     failed: "border-destructive/40 text-destructive",
+  }
+  const label: Record<string, string> = {
+    preinscribed: "por autorizar",
+    pending: "por pagar",
+    awaiting_settlement: "por pagar",
+    escrowed: "en garantía",
+    settled: "completado",
+    confirmed: "completado",
   }
   return (
     <span
       className={`rounded border px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest ${tone[status] ?? ""}`}
     >
-      {status}
+      {label[status] ?? status}
     </span>
   )
 }

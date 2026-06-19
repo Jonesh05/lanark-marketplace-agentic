@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { Boxes, Coins, Loader2, ScrollText, ShieldCheck } from "lucide-react"
-import { formatPrice, formatCusdMicro, shortAddress } from "@/lib/format"
+import { formatPrice, shortAddress } from "@/lib/format"
+import { cusdWeiToHuman, explorerTxUrl, SETTLEMENT_SYMBOL } from "@/lib/celo"
 
 type Snapshot = {
   role: "client" | "shopkeeper"
@@ -10,7 +11,7 @@ type Snapshot = {
   offers: Array<{
     id: string
     qty: number
-    amount_cusd_micro: number
+    amount_cusd_wei: string
     status: string
     created_at: string
     products: { id?: string; title: string } | { id?: string; title: string }[]
@@ -18,7 +19,7 @@ type Snapshot = {
   orders: Array<{
     id: string
     qty: number
-    amount_cusd_micro: number
+    amount_cusd_wei: string
     status: string
     tx_hash: string | null
     products: { title: string } | { title: string }[]
@@ -40,6 +41,26 @@ type Snapshot = {
 function pickTitle(rel: any): string {
   if (Array.isArray(rel)) return rel[0]?.title ?? "—"
   return rel?.title ?? "—"
+}
+
+// User-facing order state. Internal status strings are not for buyers/sellers.
+function orderStatusLabel(status: string): string {
+  switch (status) {
+    case "preinscribed":
+      return "Por autorizar"
+    case "pending":
+      return "Autorizada"
+    case "awaiting_settlement":
+      return "En liquidación"
+    case "confirmed":
+      return "Confirmada"
+    case "submitted":
+      return "Enviada"
+    case "failed":
+      return "Fallida"
+    default:
+      return status
+  }
 }
 
 export function StateBoard({ refreshKey }: { refreshKey: number }) {
@@ -136,7 +157,7 @@ export function StateBoard({ refreshKey }: { refreshKey: number }) {
           <Row
             key={o.id}
             primary={pickTitle((o as any).products)}
-            secondary={`${o.qty} × · ${formatCusdMicro(o.amount_cusd_micro)} cUSD`}
+            secondary={`${o.qty} × · ${cusdWeiToHuman(o.amount_cusd_wei)} ${SETTLEMENT_SYMBOL}`}
             badge={o.status}
           />
         ))}
@@ -150,8 +171,27 @@ export function StateBoard({ refreshKey }: { refreshKey: number }) {
           <Row
             key={o.id}
             primary={pickTitle((o as any).products)}
-            secondary={`${formatCusdMicro(o.amount_cusd_micro)} cUSD${o.tx_hash ? " · tx " + o.tx_hash.slice(0, 8) : ""}`}
-            badge={o.status}
+            secondary={
+              <>
+                {cusdWeiToHuman(o.amount_cusd_wei)} {SETTLEMENT_SYMBOL}
+                {o.tx_hash ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={explorerTxUrl(o.tx_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline"
+                    >
+                      tx {o.tx_hash.slice(0, 8)} ↗
+                    </a>
+                  </>
+                ) : (
+                  " · sin tx"
+                )}
+              </>
+            }
+            badge={orderStatusLabel(o.status)}
           />
         ))}
       </Section>
@@ -213,7 +253,7 @@ function Row({
   badge,
 }: {
   primary: string
-  secondary: string
+  secondary: React.ReactNode
   badge: string
 }) {
   return (

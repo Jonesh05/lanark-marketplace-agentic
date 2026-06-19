@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { useAccount, useDisconnect } from "wagmi"
 import { useAppKit } from "@reown/appkit/react"
 import { erc20Abi, formatUnits } from "viem"
-import { CUSD_ADDRESS, publicClient } from "@/lib/celo"
+import { settlementToken, publicClient, SETTLEMENT_SYMBOL, explorerAddressUrl } from "@/lib/celo"
 import { shortAddress } from "@/lib/format"
+import copy from "@/lib/copy/en"
+import { useIsMiniPay } from "@/hooks/use-minipay"
 import { Button } from "@/components/ui/button"
 import {
   Wallet,
@@ -14,7 +16,65 @@ import {
   Plug,
   ShieldCheck,
   RefreshCcw,
+  Coins,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react"
+
+/**
+ * Full-address copy field. Shows a truncated address for layout but lets the
+ * user copy the COMPLETE address (the brief's "□ que funcione como copy") and
+ * open it on the block explorer. Accessible: button has an explicit label and
+ * announces the copied state.
+ */
+function CopyAddress({ address, label }: { address: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  async function doCopy() {
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* clipboard may be blocked; selection still possible */
+    }
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2">
+        <code className="min-w-0 flex-1 truncate font-mono text-xs" title={address}>
+          {address}
+        </code>
+        <button
+          type="button"
+          onClick={doCopy}
+          aria-label={copied ? "Dirección copiada" : "Copiar dirección completa"}
+          title="Copiar dirección"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border/60 text-muted-foreground transition hover:border-accent/50 hover:text-accent"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-accent" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <a
+          href={explorerAddressUrl(address)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Ver dirección en el explorador"
+          title="Ver en el explorador"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border/60 text-muted-foreground transition hover:border-accent/50 hover:text-accent"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  )
+}
 
 export function WalletManage({
   boundAddress,
@@ -34,8 +94,10 @@ export function WalletManage({
     appKit = null
   }
   const open = appKit?.open?.bind(appKit)
+  const isMiniPay = useIsMiniPay()
   const { disconnectAsync } = useDisconnect()
   const [balance, setBalance] = useState<string | null>(null)
+  const [native, setNative] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const liveAddress = address ?? boundAddress
@@ -47,15 +109,24 @@ export function WalletManage({
   async function loadBalance(addr: string) {
     setRefreshing(true)
     try {
-      const wei = await publicClient().readContract({
-        address: CUSD_ADDRESS,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [addr as `0x${string}`],
-      })
+      const client = publicClient()
+      // cUSD is the settlement asset; native CELO only covers gas. Read both so
+      // a seller still waiting on their first payout sees the gas they actually
+      // hold (what wallets like MetaMask surface) instead of just "0.00".
+      const [wei, nativeWei] = await Promise.all([
+        client.readContract({
+          address: settlementToken(),
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [addr as `0x${string}`],
+        }),
+        client.getBalance({ address: addr as `0x${string}` }),
+      ])
       setBalance(Number(formatUnits(wei, 18)).toFixed(2))
+      setNative(Number(formatUnits(nativeWei, 18)).toFixed(3))
     } catch {
       setBalance(null)
+      setNative(null)
     } finally {
       setRefreshing(false)
     }
@@ -89,22 +160,62 @@ export function WalletManage({
               )}
             </div>
           </div>
-          <Button onClick={() => open()} variant="outline" className="h-9 gap-2">
-            <Plug className="h-3.5 w-3.5" />
-            {isConnected ? "Switch network" : "Open AppKit"}
-          </Button>
+          {isMiniPay ? (
+            <span className="inline-flex h-9 items-center gap-2 rounded-md border border-accent/30 bg-accent/5 px-3 font-mono text-[10px] uppercase tracking-widest text-accent">
+              <Plug className="h-3.5 w-3.5" />
+              MiniPay wallet
+            </span>
+          ) : (
+            <Button onClick={() => open?.()} variant="outline" className="h-9 gap-2">
+              <Plug className="h-3.5 w-3.5" />
+              {isConnected ? "Switch network" : "Open AppKit"}
+            </Button>
+          )}
         </div>
+
+        {/* Full address + copy box. Receiving address for both clients and
+            shopkeepers — the real address is never hidden, and it can be copied
+            or opened on the explorer to verify the account and its activity. */}
+        {liveAddress ? (
+          <div className="mt-4">
+            <CopyAddress
+              address={liveAddress}
+              label={
+                role === "shopkeeper"
+                  ? "Your payout address (share to receive)"
+                  : "Your wallet address"
+              }
+            />
+            {boundAddress &&
+              address &&
+              boundAddress.toLowerCase() !== address.toLowerCase() && (
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-amber-400">
+                  La wallet conectada difiere de tu dirección vinculada.
+                </p>
+              )}
+          </div>
+        ) : (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Conecta una wallet para ver y copiar tu dirección.
+          </p>
+        )}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-3">
         <Stat
           icon={Wallet}
-          label="Live balance"
-          value={balance !== null ? `${balance} cUSD` : isConnected ? "—" : "connect to read"}
+          label={copy.wallet.liveBalance}
+          value={
+            balance !== null
+              ? `${balance} ${SETTLEMENT_SYMBOL}`
+              : isConnected
+                ? "—"
+                : copy.wallet.connectToRead
+          }
           action={
             liveAddress
               ? {
-                  label: refreshing ? "Loading…" : "Refresh",
+                  label: refreshing ? copy.wallet.loading : copy.wallet.refresh,
                   onClick: () => loadBalance(liveAddress),
                   icon: RefreshCcw,
                   spin: refreshing,
@@ -113,8 +224,19 @@ export function WalletManage({
           }
         />
         <Stat
+          icon={Coins}
+          label={copy.wallet.gasBalance}
+          value={
+            native !== null
+              ? `${native} CELO`
+              : isConnected
+                ? "—"
+                : copy.wallet.connectToRead
+          }
+        />
+        <Stat
           icon={Globe}
-          label="Network"
+          label={copy.wallet.network}
           value={
             isConnected
               ? `${chain?.name ?? "Celo"} · ${chain?.id ?? 42220}`
@@ -122,6 +244,14 @@ export function WalletManage({
           }
         />
       </section>
+
+      {liveAddress && balance !== null && Number(balance) === 0 && (
+        <p className="-mt-3 rounded-lg border border-border/60 bg-card/40 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          {role === "shopkeeper"
+            ? copy.wallet.waitingShopkeeper
+            : copy.wallet.waitingClient}
+        </p>
+      )}
 
       <section className="rounded-xl border border-border/60 bg-card/40 p-5">
         <div className="flex flex-col gap-3">
@@ -131,14 +261,20 @@ export function WalletManage({
               Live wallet session
             </span>
           </div>
-          {!isConnected ? (
+          {isMiniPay ? (
+            <p className="text-sm text-muted-foreground">
+              You are inside MiniPay. Lanark uses your embedded MiniPay wallet
+              automatically — no separate connection or network switch is
+              needed.
+            </p>
+          ) : !isConnected ? (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">
                 Open AppKit to connect a wallet, view your account, or change
                 network. Your bound address stays the same — this only
                 hydrates the in-page session.
               </p>
-              <Button onClick={() => open()} className="h-10 w-fit gap-2">
+              <Button onClick={() => open?.()} className="h-10 w-fit gap-2">
                 <Wallet className="h-4 w-4" />
                 Open AppKit
               </Button>
@@ -160,7 +296,7 @@ export function WalletManage({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  onClick={() => open({ view: "Account" })}
+                  onClick={() => open?.({ view: "Account" })}
                   variant="outline"
                   className="h-9 gap-2"
                 >
@@ -168,7 +304,7 @@ export function WalletManage({
                   Account
                 </Button>
                 <Button
-                  onClick={() => open({ view: "Networks" })}
+                  onClick={() => open?.({ view: "Networks" })}
                   variant="outline"
                   className="h-9 gap-2"
                 >

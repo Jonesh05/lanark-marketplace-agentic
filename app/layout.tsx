@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
 
 import { ThemeProvider } from "@/components/providers/theme-provider"
+import { FavoritesProvider } from "@/components/favorites/favorites-provider"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -23,7 +24,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Lanark — Agentic on-chain marketplace",
   description:
-    "Browse a real product catalog, place offers in plain English, and let an autonomous agent settle every trade in cUSD on Celo.",
+    "Browse a real product catalog, place offers in plain English, and let an autonomous agent settle every trade in USDm on Celo.",
   generator: "v0.app",
 }
 
@@ -51,7 +52,7 @@ export default function RootLayout({
           forcedTheme="dark"
           disableTransitionOnChange
         >
-          {children}
+          <FavoritesProvider>{children}</FavoritesProvider>
           <Toaster theme="dark" position="bottom-right" />
         </ThemeProvider>
         {process.env.NODE_ENV === "production" && <Analytics />}

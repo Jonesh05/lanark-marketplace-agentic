@@ -5,15 +5,16 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowUp, Loader2, Sparkles, Wrench } from "lucide-react"
+import { ArrowUp, Loader2, Sparkles, Wrench, Mic, Square } from "lucide-react"
+import { useVoiceInput } from "@/hooks/use-voice-input"
 
 const SUGGESTIONS_BY_ROLE: Record<"client" | "shopkeeper", string[]> = {
   client: [
-    "What categories of products are available?",
-    "Find smartphones under $500",
-    "Place an offer of 10 cUSD on the iPhone 9",
-    "What's my cUSD balance?",
-    "Show my open offers",
+    "¿Qué categorías de productos hay?",
+    "Busca arroz y agrégalo a mi carrito",
+    "Muéstrame mi carrito",
+    "Compra mi carrito y envíalo a mi dirección",
+    "¿Cuál es mi saldo en USDm?",
   ],
   shopkeeper: [
     "List my live inventory",
@@ -77,12 +78,35 @@ export function ChatUI({
   const isStreaming = status === "streaming" || status === "submitted"
   const suggestions = SUGGESTIONS_BY_ROLE[role]
 
+  const voice = useVoiceInput("es-ES")
+
   function submit() {
     const text = input.trim()
     if (!text || isStreaming) return
     sendMessage({ text })
     setInput("")
   }
+
+  function toggleMic() {
+    if (isStreaming) return
+    // On a final transcript, send straight away for a frictionless voice
+    // purchase; the recognized text is also announced via the live region.
+    void voice.start((text) => {
+      if (!text) return
+      sendMessage({ text })
+      setInput("")
+    })
+  }
+
+  const micStatus = voice.error
+    ? voice.error
+    : voice.transcribing
+      ? "Transcribiendo tu voz…"
+      : voice.listening
+        ? voice.interim
+          ? `Escuchando: ${voice.interim}`
+          : "Escuchando… habla ahora."
+        : ""
 
   return (
     <div
@@ -152,21 +176,55 @@ export function ChatUI({
                   submit()
                 }
               }}
-              placeholder="Ask the agent…"
+              placeholder={voice.listening ? "Escuchando tu voz…" : "Escribe o habla al agente…"}
               rows={1}
+              aria-label="Mensaje para el agente"
               className="min-h-9 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
             />
+            {voice.supported && (
+              <Button
+                size="icon"
+                type="button"
+                variant={voice.listening ? "default" : "outline"}
+                onClick={toggleMic}
+                disabled={isStreaming || voice.transcribing}
+                aria-label={voice.listening ? "Detener dictado por voz" : "Hablar al agente"}
+                aria-pressed={voice.listening}
+                title={voice.listening ? "Detener" : "Hablar"}
+                className={voice.listening ? "animate-pulse" : ""}
+              >
+                {voice.transcribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : voice.listening ? (
+                  <Square className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             <Button
               size="icon"
               onClick={submit}
               disabled={!input.trim() || isStreaming}
-              aria-label="Send"
+              aria-label="Enviar"
             >
               <ArrowUp className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mt-1.5 text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            tools · supabase · viem · celo
+
+          {/* Accessible status: announced to screen readers; also visible. */}
+          <p
+            aria-live="polite"
+            role="status"
+            className={`mt-1.5 min-h-[1rem] text-center text-[11px] ${
+              voice.error ? "text-destructive" : "text-muted-foreground"
+            }`}
+          >
+            {micStatus}
+          </p>
+
+          <p className="text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            voz · tools · supabase · viem · celo
           </p>
         </div>
       </div>
@@ -216,27 +274,48 @@ function ToolPart({ part }: { part: any }) {
     | "output-available"
     | "output-error"
 
+  // Human-readable label per tool, so non-technical users see an action, not
+  // an internal function name.
+  const labels: Record<string, string> = {
+    searchProducts: "Buscando productos",
+    listCategories: "Revisando categorías",
+    addToCart: "Agregando a tu carrito",
+    viewCart: "Revisando tu carrito",
+    checkoutCart: "Creando tu orden",
+    authorizeOrder: "Autorizando el pago",
+    confirmOrder: "Confirmando tu orden",
+    placeOffer: "Enviando tu oferta",
+    getMyOffers: "Consultando tus ofertas",
+    getMyOrders: "Consultando tus pedidos",
+    decideOffer: "Respondiendo la oferta",
+    listMyInventory: "Revisando tu inventario",
+    createProduct: "Publicando producto",
+    updateProduct: "Actualizando producto",
+    deleteProduct: "Quitando producto",
+    getCusdBalance: "Consultando tu saldo",
+  }
+  const label = labels[name] ?? "Procesando"
+
+  // Never render raw tool output (it may contain DB/SQL detail). Only show a
+  // calm status; the assistant message carries the human explanation.
+  const out = part.output as { error?: string } | undefined
+  const isError = state === "output-error" || Boolean(out?.error)
+
   return (
     <div className="max-w-[85%] rounded-lg border border-border/60 bg-card/40 px-3 py-2 text-xs">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Wrench className="h-3 w-3" />
-        <span className="font-mono text-[11px] text-foreground">{name}</span>
+        <span className="text-[11px] text-foreground">{label}</span>
         <span className="font-mono text-[9px] uppercase tracking-widest text-accent">
           {state === "output-available"
-            ? "ok"
+            ? isError
+              ? "sin éxito"
+              : "listo"
             : state === "output-error"
-              ? "err"
+              ? "sin éxito"
               : "…"}
         </span>
       </div>
-      {state === "output-error" && part.errorText && (
-        <div className="mt-1 text-destructive">{String(part.errorText)}</div>
-      )}
-      {state === "output-available" && part.output && (
-        <pre className="mt-1 max-h-48 overflow-auto font-mono text-[10px] leading-relaxed text-muted-foreground">
-          {JSON.stringify(part.output, null, 2)}
-        </pre>
-      )}
     </div>
   )
 }

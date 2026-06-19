@@ -17,7 +17,20 @@ export type X402PaymentSpec = {
   payee: string; // recipient address
   facilitator?: string; // optional facilitator/payee agent
   memo?: string;
-  raw?: any;
+  raw?: Record<string, unknown>; // untrusted external payload - validate before use
+}
+
+const EVM_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
+
+/**
+ * Validate a parsed spec before it is handed to a signer. Returns null when
+ * the spec is unsafe to act on (missing/invalid payee or non-positive amount).
+ * LANARK settles in cUSD, so callers must not default to another token.
+ */
+export function isPaymentSpecSignable(spec: X402PaymentSpec): boolean {
+  if (!EVM_ADDRESS_RE.test(spec.payee)) return false
+  const n = Number(spec.amount)
+  return Number.isFinite(n) && n > 0
 }
 
 /**
@@ -27,7 +40,7 @@ export type X402PaymentSpec = {
  *
  * Example usage:
  * const resOrSpec = await fetchWithX402(url, init)
- * if ('x402' in resOrSpec) { /* handle payment */ }
+ * if ('x402' in resOrSpec) { handle payment }
  */
 export async function fetchWithX402(input: RequestInfo, init?: RequestInit): Promise<Response | { x402: X402PaymentSpec }> {
   const res = await fetch(input, init)
@@ -46,7 +59,7 @@ export async function fetchWithX402(input: RequestInfo, init?: RequestInit): Pro
 
   const ps: X402PaymentSpec = {
     amount: String(spec.amount ?? spec.value ?? spec.price ?? '0'),
-    currency: spec.currency ?? spec.token ?? 'USDC',
+    currency: spec.currency ?? spec.token ?? 'cUSD',
     payee: spec.payee ?? spec.payee_address ?? spec.merchant ?? '',
     facilitator: spec.facilitator ?? spec.facilitator_address,
     memo: spec.memo ?? spec.note,
@@ -63,7 +76,7 @@ export async function fetchWithX402(input: RequestInfo, init?: RequestInit): Pro
 export function normalizePaymentSpec(spec: any): X402PaymentSpec {
   return {
     amount: String(spec?.amount ?? spec?.value ?? '0'),
-    currency: spec?.currency ?? spec?.token ?? 'USDC',
+    currency: spec?.currency ?? spec?.token ?? 'cUSD',
     payee: spec?.payee ?? spec?.payee_address ?? spec?.merchant ?? '',
     facilitator: spec?.facilitator ?? spec?.facilitator_address,
     memo: spec?.memo ?? spec?.note,

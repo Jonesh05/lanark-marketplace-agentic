@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Wallet, Loader2, ArrowRight, Power } from "lucide-react"
 import { shortAddress } from "@/lib/format"
+import { useIsMiniPay } from "@/hooks/use-minipay"
 
 function buildMessage(address: string, nonce: string) {
   return [
@@ -16,14 +17,6 @@ function buildMessage(address: string, nonce: string) {
     `Nonce: ${nonce}`,
     `Issued: ${new Date().toISOString()}`,
   ].join("\n")
-}
-
-function makeNonce() {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
 }
 
 export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
@@ -38,6 +31,7 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
   const { address, isConnected, connector } = useAccount()
   const { disconnectAsync } = useDisconnect()
   const { signMessageAsync } = useSignMessage()
+  const isMiniPay = useIsMiniPay()
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,13 +41,27 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
     setSubmitting(true)
     setError(null)
     try {
-      const nonce = makeNonce()
+      const nres = await fetch(`/api/auth/nonce?address=${address}`)
+      const njson = await nres.json().catch(() => ({}))
+      if (!nres.ok || !njson?.nonce) {
+        throw new Error("No se pudo iniciar la sesión. Intenta de nuevo.")
+      }
+      const nonce = njson.nonce as string
       const message = buildMessage(address, nonce)
       const signature = await signMessageAsync({ message })
 
-      const isSCA = connector?.id === "w3mAuth" ||
-        connector?.name?.toLowerCase().includes("appkit") ||
-        connector?.name?.toLowerCase().includes("social")
+      // AppKit's embedded (email/social) wallet is a smart account. Its
+      // connector id is "AUTH" in AppKit v1.8 (older builds used "w3mAuth").
+      // Mislabeling it as an EOA makes the server attempt ECDSA recovery and
+      // reject the sign-in, which would lock out non-technical social users.
+      const cid = connector?.id?.toLowerCase() ?? ""
+      const cname = connector?.name?.toLowerCase() ?? ""
+      const isSCA =
+        cid === "auth" ||
+        cid === "w3mauth" ||
+        cname.includes("appkit") ||
+        cname.includes("social") ||
+        cname.includes("email")
 
       const res = await fetch("/api/auth/wallet", {
         method: "POST",
@@ -102,6 +110,18 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
   }
 
   if (!isConnected || !address) {
+    // Inside MiniPay we use only the embedded wallet (MiniPayAutoConnect runs
+    // the injected connect), so the "Connect Wallet" / social-login button is
+    // hidden and we just show the auto-connect state.
+    if (isMiniPay) {
+      return (
+        <Button size="lg" className="h-12 w-full justify-center gap-3" disabled>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Connecting MiniPay wallet…
+        </Button>
+      )
+    }
+
     const openWallet = () => {
       try { appKit?.open?.() } catch (e) { console.warn("appKit.open failed", e) }
     }
@@ -129,13 +149,15 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
           <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Connected</span>
           <span className="font-mono text-[11px] text-foreground">{shortAddress(address)}</span>
         </div>
-        <button
-          type="button"
-          onClick={() => disconnectAsync()}
-          className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
-        >
-          <Power className="h-3 w-3" /> Switch
-        </button>
+        {!isMiniPay && (
+          <button
+            type="button"
+            onClick={() => disconnectAsync()}
+            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground transition hover:text-foreground"
+          >
+            <Power className="h-3 w-3" /> Switch
+          </button>
+        )}
       </div>
       <Button
         size="lg"

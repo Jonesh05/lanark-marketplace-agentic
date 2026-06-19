@@ -1,6 +1,6 @@
 # Senior Implementation Agent
 
-Role: Senior Implementation (executor)
+Role: Senior Implementation microservicios (executor)
 Scope: Repo /home/jonesh/project-web/lanark-marketplace
 Responsibilities:
 - Execute P0 tasks: remove DummyJSON references, implement mobile-band, ensure shopping-list integration, vendor-lock checks, small atomic commits with tests.

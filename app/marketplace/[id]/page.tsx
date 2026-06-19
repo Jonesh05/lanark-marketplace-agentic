@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { formatPrice } from "@/lib/format"
 import { OfferForm } from "@/components/offer-form"
+import FavoriteButton from "@/components/ui/favorite-button"
 import type { Product } from "@/lib/types"
 import copy from "@/lib/copy/en"
 
@@ -47,6 +48,9 @@ export default async function ProductPage({
       <SiteHeader />
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[1.1fr_1fr]">
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border/60 bg-muted">
+          <div className="absolute left-3 top-3 z-10">
+            <FavoriteButton productId={p.id} />
+          </div>
           {p.image_url ? (
             p.image_url.includes("collection.cloudinary.com") ? (
               <img

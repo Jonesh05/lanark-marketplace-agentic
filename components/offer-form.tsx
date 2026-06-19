@@ -49,7 +49,7 @@ export function OfferForm({ product }: { product: Product }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="amount_cusd" className="text-[11px] uppercase tracking-widest text-muted-foreground">
-            Offer in cUSD
+            Offer in USDm
           </Label>
           <Input
             id="amount_cusd"
@@ -69,12 +69,12 @@ export function OfferForm({ product }: { product: Product }) {
           ? "Placing offer…"
           : product.stock < 1
             ? "Sold out"
-            : `Place offer · ${amount || "0.00"} cUSD`}
+            : `Place offer · ${amount || "0.00"} USDm`}
       </Button>
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        The agent will route this offer to the shopkeeper. On accept, your
-        smart account approves cUSD and the bundler sponsors gas for your
-        first trade.
+        The agent routes this offer to the shopkeeper. If they accept, it
+        becomes an order and you confirm payment in USDm on Celo. You are
+        never charged before you confirm.
       </p>
     </form>
   )

@@ -1,11 +1,13 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import copy from "@/lib/copy/en"
 
 export default function AddToListButton({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   async function handleAdd() {
     setLoading(true)
@@ -21,6 +23,9 @@ export default function AddToListButton({ productId }: { productId: string }) {
         toast.error(copy.addToList.addFailed)
       } else {
         toast.success(copy.addToList.added)
+        // Refresh the server-rendered header badge + cart so the count is in
+        // sync with what was just added (Next Router Cache otherwise lags).
+        router.refresh()
       }
     } catch (e) {
       console.error(e)

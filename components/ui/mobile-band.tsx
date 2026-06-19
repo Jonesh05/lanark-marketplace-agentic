@@ -26,7 +26,7 @@ export default function MobileBand({ items }: { items: Product[] }) {
     let paused = false
 
     function step(now: number) {
-      if (stopped) return
+      if (!el || stopped) return
       if (paused) {
         last = now
         rafRef.current = requestAnimationFrame(step)
@@ -81,10 +81,14 @@ export default function MobileBand({ items }: { items: Product[] }) {
   const duplicated = items.concat(items)
 
   return (
-    <div className="overflow-hidden" ref={containerRef} style={{ WebkitOverflowScrolling: "touch" }}>
-      <div className="flex gap-4" style={{ width: "max-content" }}>
-        {duplicated.map((p) => (
-          <div key={p.id} className="w-[160px] flex-shrink-0">
+    <div
+      ref={containerRef}
+      className="overflow-x-auto touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
+      <div className="flex gap-4 snap-x snap-mandatory" style={{ width: "max-content" }}>
+        {duplicated.map((p, i) => (
+          <div key={`${i < items.length ? "a" : "b"}-${p.id}`} className="w-[200px] flex-shrink-0">
             <ProductCard product={p} />
           </div>
         ))}

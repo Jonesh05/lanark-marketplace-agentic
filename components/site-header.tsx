@@ -14,6 +14,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { shortAddress } from "@/lib/format"
 import { WalletPill } from "@/components/wallet-pill"
 import { AgentPulse } from "@/components/agent-pulse"
+import { ShoppingCart } from "lucide-react"
+import copy from "@/lib/copy/en"
 
 export async function SiteHeader() {
   const supabase = await createClient()
@@ -24,6 +26,7 @@ export async function SiteHeader() {
   let displayName: string | null = null
   let role: string | null = null
   let primaryAddress: string | null = null
+  let cartCount = 0
   if (user) {
     // maybeSingle so a missing profile row does not throw and force
     // the server to render a different tree than the client. With
@@ -38,6 +41,30 @@ export async function SiteHeader() {
     displayName = profile?.display_name ?? user.email ?? "User"
     role = profile?.role ?? "client"
     primaryAddress = profile?.primary_address ?? null
+
+    // Persistent-cart signal: count items in the buyer's single open cart so
+    // the header badge survives navigation and reloads. Shopkeepers run a
+    // store console and never carry a buyer cart, so it is skipped for them.
+    if (role !== "shopkeeper") {
+      const { data: openCart } = await supabase
+        .from("carts")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "open")
+        .maybeSingle()
+      if (openCart?.id) {
+        // Sum quantities (not row count) so the badge matches the units the
+        // buyer actually added and what the cart view totals.
+        const { data: qtyRows } = await supabase
+          .from("cart_items")
+          .select("quantity")
+          .eq("cart_id", openCart.id)
+        cartCount = (qtyRows ?? []).reduce(
+          (s, r) => s + (Number((r as { quantity?: number }).quantity) || 0),
+          0,
+        )
+      }
+    }
   }
 
   return (
@@ -77,6 +104,25 @@ export async function SiteHeader() {
             </Button>
           ) : (
             <>
+              {role !== "shopkeeper" && (
+                <Link
+                  href="/cart"
+                  aria-label={
+                    cartCount > 0
+                      ? `${copy.cart.navLabel} (${cartCount})`
+                      : copy.cart.navLabel
+                  }
+                  className="relative inline-flex items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-[11px] transition-colors hover:bg-accent/10"
+                >
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{copy.cart.navLabel}</span>
+                  {cartCount > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-semibold tabular-nums text-accent-foreground">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
               <AgentPulse />
               <WalletPill address={primaryAddress} />
             <DropdownMenu>
@@ -108,6 +154,16 @@ export async function SiteHeader() {
                 <DropdownMenuItem asChild>
                   <Link href="/dashboard">Dashboard</Link>
                 </DropdownMenuItem>
+                {role !== "shopkeeper" && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/cart">{copy.cart.navLabel}</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/favorites">{copy.favorites.navLabel}</Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuItem asChild>
                   <Link href="/wallet">Wallet</Link>
                 </DropdownMenuItem>

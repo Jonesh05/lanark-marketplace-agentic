@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { ShopkeeperDashboard } from "@/components/dashboard/shopkeeper"
 import { ClientDashboard } from "@/components/dashboard/client"
-import type { Product, Offer, Order, Profile } from "@/lib/types"
+import { computeSellerMetrics } from "@/lib/metrics/seller"
+import type { Product, Offer, Order, OrderItem, Profile, Store } from "@/lib/types"
 
 export const dynamic = "force-dynamic"
 
@@ -28,12 +29,19 @@ export default async function DashboardPage() {
     profile?.role === "shopkeeper" ? "shopkeeper" : "client"
 
   if (role === "shopkeeper") {
-    const [{ data: products }, { data: offers }, { data: orders }] =
-      await Promise.all([
+    const [
+      { data: products },
+      { data: offers },
+      { data: orders },
+      { data: orderItems },
+      { data: store },
+    ] = await Promise.all([
+        // Private dashboard scope: my_store_products is a security_invoker view
+        // that filters to auth.uid() in the database, so the shopkeeper can
+        // never pull the global catalog here (enforced in SQL, not by a filter).
         supabase
-          .from("products")
+          .from("my_store_products")
           .select("*")
-          .eq("shopkeeper_id", user.id)
           .order("created_at", { ascending: false }),
         supabase
           .from("offers")
@@ -41,22 +49,44 @@ export default async function DashboardPage() {
           .eq("products.shopkeeper_id", user.id)
           .order("created_at", { ascending: false })
           .limit(50),
+        // Wider window than the old limit-20 so metrics (revenue, conversion,
+        // recurring customers) reflect real history, not just the latest page.
         supabase
           .from("orders")
           .select("*")
           .eq("shopkeeper_id", user.id)
           .order("created_at", { ascending: false })
-          .limit(20),
+          .limit(200),
+        supabase
+          .from("order_items")
+          .select("*")
+          .eq("shopkeeper_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(500),
+        // The shopkeeper's own storefront (renameable brand identity).
+        supabase
+          .from("stores")
+          .select("*")
+          .eq("owner_id", user.id)
+          .maybeSingle(),
       ])
+
+    const productList = (products ?? []) as Product[]
+    const orderList = (orders ?? []) as Order[]
+    const itemList = (orderItems ?? []) as OrderItem[]
+    const metrics = computeSellerMetrics(orderList, itemList, productList)
 
     return (
       <div className="min-h-svh">
         <SiteHeader />
         <ShopkeeperDashboard
           profile={profile!}
-          products={(products ?? []) as Product[]}
+          store={(store ?? null) as Store | null}
+          products={productList}
           offers={(offers ?? []) as Offer[]}
-          orders={(orders ?? []) as Order[]}
+          orders={orderList}
+          orderItems={itemList}
+          metrics={metrics}
         />
       </div>
     )

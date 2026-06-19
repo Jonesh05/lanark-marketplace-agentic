@@ -18,6 +18,19 @@ export async function setRole(role: Role) {
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
+  // Role-lock: a profile's role is set once (at wallet sign-in / first choice).
+  // Do not let an authenticated client silently self-upgrade to shopkeeper by
+  // calling this action directly. If a role is already on file, keep it.
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (existing?.role && existing.role !== role) {
+    return { ok: false as const, error: "Role change forbidden" }
+  }
+
   await supabase
     .from("profiles")
     .update({ role, is_guest: false })

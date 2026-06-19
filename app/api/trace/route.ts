@@ -17,7 +17,8 @@ export async function GET(req: Request) {
   if (!user) return new NextResponse("Unauthorized", { status: 401 })
 
   const url = new URL(req.url)
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 25), 100)
+  const raw = Number(url.searchParams.get("limit") ?? 25)
+  const limit = Number.isFinite(raw) && raw > 0 ? Math.min(raw, 100) : 25
 
   const { data, error } = await supabase
     .from("agent_actions")
@@ -26,6 +27,9 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: false })
     .limit(limit)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error("[trace] query error:", error)
+    return NextResponse.json({ error: "Could not load trace" }, { status: 500 })
+  }
   return NextResponse.json({ items: data ?? [] })
 }

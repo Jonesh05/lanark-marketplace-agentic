@@ -67,7 +67,7 @@ const azureProvider = createOpenAI({
 /**
  * Pre-bound chat model pointing at the configured Azure deployment.
  */
-export const azureChatModel = azureProvider.chat("gpt-4o-mini")
+export const azureChatModel = azureProvider.chat(deploymentName)
 
 export const AZURE_DEPLOYMENT_NAME = deploymentName
 export const AZURE_OPENAI_CONFIGURED = isConfigured

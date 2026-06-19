@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { WalletManage } from "@/components/wallet/manage"
+import { SETTLEMENT_SYMBOL } from "@/lib/celo"
 
 export const dynamic = "force-dynamic"
 
@@ -30,8 +31,8 @@ export default async function WalletPage() {
             Your Celo wallet
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            cUSD balance, network, and account management. The agent settles
-            here on every accepted offer.
+            {SETTLEMENT_SYMBOL} balance, network, and account management. The
+            agent settles here on every accepted offer.
           </p>
         </header>
 

@@ -41,10 +41,13 @@ export async function createProduct(formData: FormData) {
     .eq("id", user.id)
     .single()
   if (profile?.role !== "shopkeeper") {
-    await supabase
-      .from("profiles")
-      .update({ role: "shopkeeper", is_guest: false })
-      .eq("id", user.id)
+    // Role-lock: a client cannot silently self-promote to shopkeeper just by
+    // posting a product. Selling requires explicit shopkeeper registration so
+    // the seller and client surfaces stay strictly separated (BIZ-01).
+    return {
+      ok: false as const,
+      error: "Debes registrarte como vendedor para publicar productos.",
+    }
   }
 
   const cents = Math.round(parseFloat(parsed.data.price) * 100)
@@ -190,19 +193,25 @@ export async function toggleProductActive(productId: string, active: boolean) {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: "Not authenticated" }
 
-  // Fetch existing for audit
+  // Fetch existing for audit and ownership verification
   const { data: existing } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
     .single()
 
+  if (!existing) return { ok: false as const, error: "Product not found" }
+  if (existing.shopkeeper_id !== user.id) {
+    return { ok: false as const, error: "You can only edit your own products" }
+  }
+
   const { error } = await supabase
     .from("products")
     .update({ active })
     .eq("id", productId)
+    .eq("shopkeeper_id", user.id)
 
-  if (error) return { ok: false as const, error: error.message }
+  if (error) return { ok: false as const, error: "Could not update product" }
 
   // Audit log
   if (existing) {
@@ -230,15 +239,24 @@ export async function deleteProduct(productId: string) {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false as const, error: "Not authenticated" }
 
-  // Fetch existing for audit before delete
+  // Fetch existing for audit before delete and verify ownership
   const { data: existing } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
     .single()
 
-  const { error } = await supabase.from("products").delete().eq("id", productId)
-  if (error) return { ok: false as const, error: error.message }
+  if (!existing) return { ok: false as const, error: "Product not found" }
+  if (existing.shopkeeper_id !== user.id) {
+    return { ok: false as const, error: "You can only delete your own products" }
+  }
+
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId)
+    .eq("shopkeeper_id", user.id)
+  if (error) return { ok: false as const, error: "Could not delete product" }
 
   // Audit log
   if (existing) {
