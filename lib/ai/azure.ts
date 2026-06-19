@@ -46,22 +46,32 @@ function buildAzureBaseUrl(): string {
  * - api-version query param
  * - api-key header (required by Azure, not Authorization Bearer)
  */
+/**
+ * HTTP headers must be ByteStrings (Latin-1). The AI SDK may pass through
+ * header values containing Unicode (e.g. em-dashes from tool payloads), which
+ * throws "Cannot convert argument to a ByteString…8212". Build a clean header
+ * set instead of cloning options.headers wholesale.
+ */
+function azureFetch(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+  const urlObj = new URL(url as string)
+  urlObj.searchParams.set("api-version", "2024-10-21")
+
+  const headers = new Headers()
+  headers.set("api-key", apiKey ?? "")
+  if (options?.body) {
+    headers.set("content-type", "application/json")
+  }
+
+  return fetch(urlObj.toString(), {
+    ...options,
+    headers,
+  })
+}
+
 const azureProvider = createOpenAI({
   baseURL: buildAzureBaseUrl(),
-  apiKey: "", // Don't pass apiKey here - we'll inject it via headers in fetch
-  fetch: async (url, options) => {
-    const urlObj = new URL(url as string)
-    urlObj.searchParams.set("api-version", "2024-10-21")
-
-    const headers = new Headers(options?.headers)
-    // Azure requires api-key header, not Authorization
-    headers.set("api-key", apiKey ?? "")
-
-    return fetch(urlObj.toString(), {
-      ...options,
-      headers,
-    })
-  },
+  apiKey: "", // Injected via api-key header in azureFetch
+  fetch: azureFetch,
 })
 
 /**
