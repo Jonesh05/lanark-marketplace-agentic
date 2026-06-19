@@ -25,7 +25,7 @@ export async function confirmOrder(orderId: string) {
   try {
     const { data: order, error: oerr } = await supabase
       .from("orders")
-      .select("id, client_id, status, amount_cusd_wei")
+      .select("id, client_id, status, amount_cusd_wei, total_cusd_wei")
       .eq("id", orderId)
       .single()
     if (oerr || !order) return { ok: false as const, error: "Order not found" }
@@ -36,6 +36,11 @@ export async function confirmOrder(orderId: string) {
     if (order.status !== "pending") {
       // Idempotent: already moved past pending. Surface current state.
       return { ok: false as const, error: "Order is no longer pending", status: order.status }
+    }
+
+    const orderWei = BigInt(String(order.total_cusd_wei ?? order.amount_cusd_wei ?? "0"))
+    if (orderWei <= BigInt(0)) {
+      return { ok: false as const, error: "invalid_total" }
     }
 
     const { data: profile } = await supabase
@@ -49,7 +54,7 @@ export async function confirmOrder(orderId: string) {
       return { ok: false as const, error: "No wallet linked to this account" }
     }
 
-    const quote = await settlement.quote(BigInt(order.amount_cusd_wei))
+    const quote = await settlement.quote(orderWei)
     const requiredWei = quote.amountWei + quote.feesWei
     const funds = await settlement.checkFunds(address, requiredWei)
     if (!funds.sufficient) {

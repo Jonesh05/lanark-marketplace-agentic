@@ -8,6 +8,8 @@
 // model, which read 1_200_000 as "1,200,000 COP" — a 100x error. Always derive
 // human/cUSD amounts here instead of formatting cents ad hoc.
 
+import { cusdToWei } from "./celo"
+
 export const COP_PER_USD = 4000
 
 /** Major-unit amount in the listing currency (price_cents / 100). */
@@ -43,4 +45,34 @@ export function priceLabel(
   const cusd = productCusd(priceCents, currency, priceCusd)
   const majorStr = major.toLocaleString("es-CO", { maximumFractionDigits: 2 })
   return `${majorStr} ${currency} (~${cusd.toFixed(2)} cUSD)`
+}
+
+/**
+ * Canonical cUSD wei for a product line. Prefers explicit `price_cusd` (full
+ * decimal string, up to 18 places) and falls back to cents/currency conversion.
+ * Never returns 0 for a product with a positive configured price.
+ */
+export function productUnitPriceWei(
+  priceCents: number,
+  currency: string,
+  priceCusd?: number | string | null,
+): bigint {
+  if (priceCusd !== null && priceCusd !== undefined && String(priceCusd).trim() !== "") {
+    const raw = String(priceCusd).trim()
+    const n = Number(raw)
+    if (Number.isFinite(n) && n > 0) {
+      return cusdToWei(raw)
+    }
+  }
+  const human = productCusd(priceCents, currency, null)
+  if (!Number.isFinite(human) || human <= 0) return BigInt(0)
+  return cusdToWei(human)
+}
+
+export function productUnitPriceWeiStr(
+  priceCents: number,
+  currency: string,
+  priceCusd?: number | string | null,
+): string {
+  return productUnitPriceWei(priceCents, currency, priceCusd).toString()
 }

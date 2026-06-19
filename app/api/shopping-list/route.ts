@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createRouteHandlerClient } from '@/lib/supabase/route'
-import { cusdToWei } from '@/lib/celo'
+import { productUnitPriceWeiStr } from '@/lib/pricing'
 
 export const runtime = 'nodejs'
 
@@ -99,9 +99,17 @@ export async function POST(req: NextRequest) {
     if (cart.error || !cart.id)
       return NextResponse.json({ ok: false, error: GENERIC }, { status: 500 })
 
-    const unitWei = product.price_cusd
-      ? cusdToWei(Number(product.price_cusd)).toString()
-      : '0'
+    const unitWei = productUnitPriceWeiStr(
+      product.price_cents,
+      product.currency,
+      product.price_cusd,
+    )
+    if (unitWei === '0') {
+      return NextResponse.json(
+        { ok: false, error: 'Este producto no tiene un precio de liquidación válido.' },
+        { status: 409 },
+      )
+    }
 
     // If the item is already in the cart, increase the quantity; otherwise add.
     const { data: existing } = await supabase
@@ -115,7 +123,11 @@ export async function POST(req: NextRequest) {
       const nextQty = Math.min(existing.quantity + quantity, product.stock)
       const { data, error } = await supabase
         .from('cart_items')
-        .update({ quantity: nextQty, updated_at: new Date().toISOString() })
+        .update({
+          quantity: nextQty,
+          unit_price_cusd_wei: unitWei,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', existing.id)
         .select()
         .single()

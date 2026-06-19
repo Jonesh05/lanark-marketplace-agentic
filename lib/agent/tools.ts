@@ -3,7 +3,7 @@ import { z } from "zod"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { erc20Abi } from "viem"
 import { CUSD_ADDRESS, publicClient, cusdWeiToHuman, cusdToWei } from "@/lib/celo"
-import { productCusd, priceMajor, priceLabel } from "@/lib/pricing"
+import { productCusd, priceMajor, priceLabel, productUnitPriceWeiStr } from "@/lib/pricing"
 
 /**
  * The agent is a writer. Every tool call lands in `agent_actions` so the
@@ -927,16 +927,25 @@ export function buildTools(deps: AgentDeps) {
 
         // Snapshot the cUSD unit price. Fall back to a currency conversion when
         // price_cusd is null so the order total is never silently 0.
-        const unitWei = cusdToWei(
-          productCusd(prod.price_cents, prod.currency, prod.price_cusd),
-        ).toString()
+        const unitWei = productUnitPriceWeiStr(
+          prod.price_cents,
+          prod.currency,
+          prod.price_cusd,
+        )
+        if (unitWei === "0") {
+          return { error: "Este producto no tiene un precio de liquidación válido." }
+        }
         const { data: existing } = await deps.supabase
           .from("cart_items").select("id,quantity").eq("cart_id", cartId).eq("product_id", productId).maybeSingle()
 
         if (existing?.id) {
           const nextQty = Math.min(existing.quantity + quantity, prod.stock)
           const { error } = await deps.supabase
-            .from("cart_items").update({ quantity: nextQty, updated_at: new Date().toISOString() }).eq("id", existing.id)
+            .from("cart_items").update({
+              quantity: nextQty,
+              unit_price_cusd_wei: unitWei,
+              updated_at: new Date().toISOString(),
+            }).eq("id", existing.id)
           if (error) return { error: safeMessage(error.message) }
           await log({ step: "execute", kind: "add_to_cart", resource: `product:${productId}`, receipt: { cartId, quantity: nextQty } })
           return { ok: true, cartId, productId, quantity: nextQty, summary: `Actualizado: ${nextQty} × ${prod.title} en tu carrito.` }
