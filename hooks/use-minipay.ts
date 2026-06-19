@@ -18,7 +18,11 @@ export function useIsMiniPay(): boolean {
   useEffect(() => {
     try {
       const eth = (window as { ethereum?: { isMiniPay?: boolean } }).ethereum
-      if (eth?.isMiniPay) setIsMiniPay(true)
+      if (eth?.isMiniPay) {
+        setIsMiniPay(true)
+        // Helps verify MiniPay Developer Mode load in remote debugging.
+        console.info("[lanark] MiniPay detected — using embedded wallet")
+      }
     } catch {
       /* window.ethereum may be absent; not MiniPay */
     }
