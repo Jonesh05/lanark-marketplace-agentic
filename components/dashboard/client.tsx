@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import type { Offer, Order, Profile } from "@/lib/types"
 import { formatPrice, shortAddress } from "@/lib/format"

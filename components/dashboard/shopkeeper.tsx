@@ -2,14 +2,14 @@ import Link from "next/link"
 import type { Product, Offer, Order, OrderItem, Profile, Store } from "@/lib/types"
 import type { SellerMetrics } from "@/lib/metrics/seller"
 import { formatPrice, shortAddress } from "@/lib/format"
-import { cusdWeiToHuman, SETTLEMENT_SYMBOL } from "@/lib/celo"
+import { cusdWeiToHuman, SETTLEMENT_SYMBOL, explorerTxUrl } from "@/lib/celo"
 import { NewProductDialog } from "@/components/dashboard/new-product-dialog"
 import { OfferDecisionButtons } from "@/components/dashboard/offer-decision"
 import { EditProductDialog } from "@/components/dashboard/edit-product-dialog"
 import { ProductActions } from "@/components/dashboard/product-actions"
 import { OrderFulfillmentActions } from "@/components/dashboard/order-fulfillment"
 import { ReleaseOrderButton } from "@/components/dashboard/settle-order"
-import { explorerTxUrl } from "@/lib/celo"
+
 import { ExternalLink } from "lucide-react"
 
 const FULFILLMENT_LABEL: Record<string, string> = {
