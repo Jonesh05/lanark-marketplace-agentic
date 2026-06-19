@@ -8,12 +8,24 @@ import { Button } from "@/components/ui/button"
 import { AuthorizeOrderButton } from "@/components/dashboard/authorize-order"
 import { SettleOrderButton, ReleaseOrderButton } from "@/components/dashboard/settle-order"
 
+function safeWei(value: string | number | bigint | null | undefined): bigint {
+  if (value === null || value === undefined || value === "") return BigInt(0)
+  if (typeof value === "bigint") return value
+  const raw = String(value).split(".")[0]
+  if (!/^-?\d+$/.test(raw)) return BigInt(0)
+  try {
+    return BigInt(raw)
+  } catch {
+    return BigInt(0)
+  }
+}
+
 export function ClientDashboard({
   profile,
   offers,
   orders,
 }: {
-  profile: Profile
+  profile: Profile | null
   offers: Offer[]
   orders: Order[]
 }) {
@@ -22,14 +34,14 @@ export function ClientDashboard({
   const settled = orders.filter((o) => paidStates.includes(o.status)).length
   const totalSpent = orders
     .filter((o) => paidStates.includes(o.status))
-    .reduce((s, o) => s + (o.amount_cusd_wei ? BigInt(o.amount_cusd_wei) : BigInt(0)), BigInt(0))
+    .reduce((s, o) => s + safeWei(o.total_cusd_wei ?? o.amount_cusd_wei), BigInt(0))
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-10">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border/60 pb-6">
         <div className="flex flex-col gap-2">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Client · {shortAddress(profile.primary_address)}
+            Client · {shortAddress(profile?.primary_address)}
           </span>
           <h1 className="font-serif text-4xl tracking-tight">Your trades</h1>
         </div>

@@ -61,7 +61,7 @@ export function ShopkeeperDashboard({
   orderItems,
   metrics,
 }: {
-  profile: Profile
+  profile: Profile | null
   store: Store | null
   products: Product[]
   offers: Offer[]
@@ -90,7 +90,7 @@ export function ShopkeeperDashboard({
       <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border/60 pb-6">
         <div className="flex flex-col gap-2">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            Shopkeeper · {shortAddress(profile.primary_address)}
+            Shopkeeper · {shortAddress(profile?.primary_address)}
           </span>
           <h1 className="font-serif text-4xl tracking-tight">
             {store?.name ?? "Inventory & offers"}

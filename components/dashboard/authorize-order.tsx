@@ -15,8 +15,7 @@ export function AuthorizeOrderButton({ orderId }: { orderId: string }) {
       const res = await authorizeOrder(orderId)
       if (res.ok) {
         toast.success("Pago autorizado. Abriendo tu wallet…")
-        router.push(`/dashboard?pay=${orderId}`)
-        router.refresh()
+        router.replace(`/dashboard?pay=${orderId}`)
         return
       }
       toast.error(res.error ?? "No pudimos autorizar el pago.")

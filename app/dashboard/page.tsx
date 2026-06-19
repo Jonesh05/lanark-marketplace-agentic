@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     .from("profiles")
     .select("*")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
   const profile = profileRow as Profile | null
 
   // Defensive default: if a row is missing for any reason, treat as client.
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
       <div className="min-h-svh">
         <SiteHeader />
         <ShopkeeperDashboard
-          profile={profile!}
+          profile={profile}
           store={(store ?? null) as Store | null}
           products={productList}
           offers={(offers ?? []) as Offer[]}
@@ -114,7 +114,7 @@ export default async function DashboardPage() {
       <SiteHeader />
       <DashboardAutoPay />
       <ClientDashboard
-        profile={profile!}
+        profile={profile}
         offers={(offers ?? []) as Offer[]}
         orders={(orders ?? []) as Order[]}
       />

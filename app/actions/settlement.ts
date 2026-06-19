@@ -28,8 +28,20 @@ type OrderRow = {
   purchase_ref: string | null
 }
 
+function safeWei(value: string | number | bigint | null | undefined): bigint {
+  if (value === null || value === undefined || value === "") return BigInt(0)
+  if (typeof value === "bigint") return value
+  const raw = String(value).split(".")[0]
+  if (!/^-?\d+$/.test(raw)) return BigInt(0)
+  try {
+    return BigInt(raw)
+  } catch {
+    return BigInt(0)
+  }
+}
+
 function orderAmountWei(o: OrderRow): bigint {
-  return BigInt(String(o.total_cusd_wei ?? o.amount_cusd_wei ?? "0"))
+  return safeWei(o.total_cusd_wei ?? o.amount_cusd_wei)
 }
 
 /**
