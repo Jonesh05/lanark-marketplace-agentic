@@ -13,5 +13,6 @@
         "gitlens.rebase": true,
         "mainThreadWebview-markdown.preview": true,
         "workbench.input.interactive": true
-    }
+    },
+    "npm.autoDetect": "off"
 }

@@ -43,7 +43,7 @@ const en = {
     needAddress: "Please add a delivery address.",
     orderError: "We could not place your order. Try again.",
     orderOk: "Order placed. Confirm payment from your dashboard.",
-    singleVendorNote: "One order per seller — products are never mixed across stores."
+    singleVendorNote: "One order per seller - products are never mixed across stores."
   },
   store: {
     by: "Vendido por",

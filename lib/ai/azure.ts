@@ -1,21 +1,16 @@
 /**
- * AI Model configuration for the Lanark agent.
+ * Azure OpenAI chat model for the Lanark agent.
  *
- * The user has Azure OpenAI credentials configured:
- *   - AZURE_OPENAI_API_KEY
- *   - AZURE_OPENAI_ENDPOINT (e.g. https://jons-lanark-ai.openai.azure.com)
- *   - AZURE_OPENAI_DEPLOYMENT_NAME (e.g. gpt-4o-mini)
+ * Env:
+ *   AZURE_OPENAI_API_KEY
+ *   AZURE_OPENAI_ENDPOINT  (https://{resource}.openai.azure.com)
+ *   AZURE_OPENAI_DEPLOYMENT_NAME
  *
- * Azure OpenAI uses a different endpoint structure than standard OpenAI:
- *   POST {endpoint}/openai/deployments/{deployment}/chat/completions?api-version={version}
- *
- * We use @ai-sdk/openai with custom fetch to:
- * 1. Point baseURL to the deployment endpoint
- * 2. Append api-version query param
- * 3. Use api-key header (not Authorization Bearer)
+ * HTTP headers must be Latin-1 (ByteString). Never copy request / SDK headers
+ * into outbound Azure calls - Unicode in tool payloads caused production crashes.
  */
 
-import { createOpenAI } from "@ai-sdk/openai"
+import { createAzure } from "@ai-sdk/azure"
 
 const apiKey = process.env.AZURE_OPENAI_API_KEY
 const endpoint = process.env.AZURE_OPENAI_ENDPOINT
@@ -25,59 +20,49 @@ const isConfigured = Boolean(apiKey && endpoint && deploymentName)
 
 if (!isConfigured) {
   console.warn(
-    "[v0] Azure OpenAI is not fully configured. Missing one of: " +
+    "[lanark] Azure OpenAI is not fully configured. Missing one of: " +
       "AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME",
   )
 }
 
-/**
- * Build the Azure OpenAI base URL for the deployment.
- * Azure expects: {endpoint}/openai/deployments/{deployment}/chat/completions
- */
-function buildAzureBaseUrl(): string {
-  const base = (endpoint ?? "").replace(/\/+$/, "")
-  return `${base}/openai/deployments/${deploymentName}`
+function resourceNameFromEndpoint(ep: string): string {
+  const m = ep.replace(/\/+$/, "").match(/https:\/\/([^.]+)\.openai\.azure\.com/i)
+  return m?.[1] ?? ""
 }
 
-/**
- * Create an OpenAI-compatible provider that hits Azure OpenAI.
- *
- * Custom fetch handles:
- * - api-version query param
- * - api-key header (required by Azure, not Authorization Bearer)
- */
-/**
- * HTTP headers must be ByteStrings (Latin-1). The AI SDK may pass through
- * header values containing Unicode (e.g. em-dashes from tool payloads), which
- * throws "Cannot convert argument to a ByteString…8212". Build a clean header
- * set instead of cloning options.headers wholesale.
- */
-function azureFetch(url: RequestInfo | URL, options?: RequestInit): Promise<Response> {
-  const urlObj = new URL(url as string)
+function resolveFetchUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input
+  if (input instanceof URL) return input.href
+  if (typeof Request !== "undefined" && input instanceof Request) return input.url
+  return String(input)
+}
+
+/** Azure outbound fetch: only Content-Type + api-key. No copied headers. */
+function azureFetch(input: RequestInfo | URL, options?: RequestInit): Promise<Response> {
+  const urlObj = new URL(resolveFetchUrl(input))
   urlObj.searchParams.set("api-version", "2024-10-21")
 
   const headers = new Headers()
+  headers.set("Content-Type", "application/json")
   headers.set("api-key", apiKey ?? "")
-  if (options?.body) {
-    headers.set("content-type", "application/json")
-  }
 
   return fetch(urlObj.toString(), {
-    ...options,
+    method: options?.method ?? "POST",
+    body: options?.body,
+    signal: options?.signal,
     headers,
   })
 }
 
-const azureProvider = createOpenAI({
-  baseURL: buildAzureBaseUrl(),
-  apiKey: "", // Injected via api-key header in azureFetch
+const azure = createAzure({
+  apiKey: apiKey ?? "",
+  resourceName: resourceNameFromEndpoint(endpoint ?? ""),
+  apiVersion: "2024-10-21",
+  useDeploymentBasedUrls: true,
   fetch: azureFetch,
 })
 
-/**
- * Pre-bound chat model pointing at the configured Azure deployment.
- */
-export const azureChatModel = azureProvider.chat(deploymentName)
+export const azureChatModel = azure.chat(deploymentName)
 
 export const AZURE_DEPLOYMENT_NAME = deploymentName
 export const AZURE_OPENAI_CONFIGURED = isConfigured

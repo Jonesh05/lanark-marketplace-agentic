@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowUp, Loader2, Sparkles, Wrench, Mic, Square } from "lucide-react"
 import { useVoiceInput } from "@/hooks/use-voice-input"
+import { extractAuthorizedOrderId } from "@/components/agent-checkout-settle"
 
 const SUGGESTIONS_BY_ROLE: Record<"client" | "shopkeeper", string[]> = {
   client: [
@@ -29,10 +30,12 @@ export function ChatUI({
   role,
   embedded = false,
   onActivity,
+  onAuthorizedOrder,
 }: {
   role: "client" | "shopkeeper"
   embedded?: boolean
   onActivity?: () => void
+  onAuthorizedOrder?: (orderId: string) => void
 }) {
   const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -74,6 +77,16 @@ export function ChatUI({
       onActivity()
     }
   }, [messages, status, onActivity])
+
+  // Auto-open wallet after agent authorizes payment on a new order.
+  const payTriggered = useRef<string | null>(null)
+  useEffect(() => {
+    if (!onAuthorizedOrder) return
+    const orderId = extractAuthorizedOrderId(messages)
+    if (!orderId || payTriggered.current === orderId) return
+    payTriggered.current = orderId
+    onAuthorizedOrder(orderId)
+  }, [messages, onAuthorizedOrder])
 
   const isStreaming = status === "streaming" || status === "submitted"
   const suggestions = SUGGESTIONS_BY_ROLE[role]

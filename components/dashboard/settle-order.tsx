@@ -2,39 +2,10 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import {
-  createPublicClient,
-  http,
-  getAddress,
-  type Hex,
-} from "viem"
-import { useAccount, useSwitchChain, useWriteContract } from "wagmi"
-import { useAppKit } from "@reown/appkit/react"
 import { Button } from "@/components/ui/button"
 import { Loader2, Wallet, ExternalLink, CheckCircle2 } from "lucide-react"
-import { prepareSettlement, recordDeposit, releaseOrder } from "@/app/actions/settlement"
-import { useIsMiniPay } from "@/hooks/use-minipay"
-import { explorerTxUrl, CELO_SEPOLIA_CHAIN_ID } from "@/lib/celo"
-import {
-  ESCROW_ABI,
-  ERC20_FAUCET_ABI,
-  PUBLIC_CHAIN_ID,
-  PUBLIC_RPC_URL,
-} from "@/lib/settlement/abi"
-
-function reader() {
-  return createPublicClient({ transport: http(PUBLIC_RPC_URL) })
-}
-
-type Phase =
-  | "idle"
-  | "preparing"
-  | "switching"
-  | "funding"
-  | "approving"
-  | "depositing"
-  | "recording"
-  | "done"
+import { releaseOrder } from "@/app/actions/settlement"
+import { useSettleOrder, type SettlePhase } from "@/hooks/use-settle-order"
 
 /**
  * Buyer-facing "pay" button. Drives the full on-chain settlement from the
@@ -45,21 +16,22 @@ type Phase =
 export function SettleOrderButton({
   orderId,
   onSettled,
+  autoRun = false,
 }: {
   orderId: string
   onSettled?: () => void
+  autoRun?: boolean
 }) {
-  const { address, isConnected } = useAccount()
-  const { switchChainAsync } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-  const { open } = useAppKit()
-  const isMiniPay = useIsMiniPay()
-  const [phase, setPhase] = React.useState<Phase>("idle")
-  const [txUrl, setTxUrl] = React.useState<string | null>(null)
+  const { settle, phase, busy, txUrl } = useSettleOrder(onSettled)
+  const autoStarted = React.useRef(false)
 
-  const busy = phase !== "idle" && phase !== "done"
+  React.useEffect(() => {
+    if (!autoRun || autoStarted.current) return
+    autoStarted.current = true
+    void settle(orderId)
+  }, [autoRun, orderId, settle])
 
-  const phaseLabel: Record<Phase, string> = {
+  const phaseLabel: Record<SettlePhase, string> = {
     idle: "Pagar ahora",
     preparing: "Preparando garantía…",
     switching: "Cambiando de red…",
@@ -68,141 +40,6 @@ export function SettleOrderButton({
     depositing: "Confirma en tu wallet…",
     recording: "Registrando pago…",
     done: "Pagado",
-  }
-
-  async function run() {
-    try {
-      setPhase("preparing")
-      const prep = await prepareSettlement(orderId)
-      if (!prep.ok) {
-        setPhase("idle")
-        if (prep.error === "insufficient_funds") {
-          toast.error(
-            `Saldo insuficiente: tienes ${(prep as any).balanceCusd} y necesitas ${(prep as any).requiredCusd}.`,
-          )
-        } else {
-          toast.error(prep.error ?? "No pudimos preparar el pago.")
-        }
-        return
-      }
-
-      if (prep.mode === "offchain") {
-        setPhase("idle")
-        toast.success("Tu orden quedó en cola de liquidación. Te avisaremos al confirmarse.")
-        onSettled?.()
-        return
-      }
-
-      // On-chain: ensure wallet + correct chain.
-      if (!isConnected || !address) {
-        setPhase("idle")
-        if (isMiniPay) {
-          // MiniPay auto-connects the embedded wallet; no modal to open.
-          toast.message("Conectando con MiniPay… vuelve a tocar Pagar.")
-        } else {
-          toast.message("Conecta tu wallet para firmar el pago.")
-          open?.()
-        }
-        return
-      }
-
-      const escrow = getAddress(prep.escrow)
-      const token = getAddress(prep.token)
-      const amount = BigInt(prep.amountWei)
-      const account = getAddress(address)
-      const pub = reader()
-
-      setPhase("switching")
-      try {
-        await switchChainAsync({ chainId: PUBLIC_CHAIN_ID })
-      } catch {
-        // user may already be on the right chain or rejected; verify by reading
-      }
-
-      // Ensure the buyer holds enough settlement token. On testnet the MockERC20
-      // exposes open mint, so we can self-fund a demo purchase.
-      const bal = (await pub.readContract({
-        address: token,
-        abi: ERC20_FAUCET_ABI,
-        functionName: "balanceOf",
-        args: [account],
-      })) as bigint
-      if (bal < amount) {
-        if (PUBLIC_CHAIN_ID === CELO_SEPOLIA_CHAIN_ID) {
-          setPhase("funding")
-          toast.message("Acuñando fondos de prueba en tu wallet…")
-          try {
-            const mintHash = await writeContractAsync({
-              address: token,
-              abi: ERC20_FAUCET_ABI,
-              functionName: "mint",
-              args: [account, amount],
-              chainId: PUBLIC_CHAIN_ID,
-            })
-            await pub.waitForTransactionReceipt({ hash: mintHash as Hex })
-          } catch {
-            setPhase("idle")
-            toast.error("No tienes suficiente saldo y no se pudo acuñar fondos de prueba.")
-            return
-          }
-        } else {
-          setPhase("idle")
-          toast.error("Saldo insuficiente para cubrir esta compra.")
-          return
-        }
-      }
-
-      // Approve escrow to pull the deposit, if needed.
-      const allowance = (await pub.readContract({
-        address: token,
-        abi: ERC20_FAUCET_ABI,
-        functionName: "allowance",
-        args: [account, escrow],
-      })) as bigint
-      if (allowance < amount) {
-        setPhase("approving")
-        const approveHash = await writeContractAsync({
-          address: token,
-          abi: ERC20_FAUCET_ABI,
-          functionName: "approve",
-          args: [escrow, amount],
-          chainId: PUBLIC_CHAIN_ID,
-        })
-        await pub.waitForTransactionReceipt({ hash: approveHash as Hex })
-      }
-
-      // Deposit into escrow — this is the buyer's payment signature.
-      setPhase("depositing")
-      const depositHash = await writeContractAsync({
-        address: escrow,
-        abi: ESCROW_ABI,
-        functionName: "deposit",
-        args: [],
-        chainId: PUBLIC_CHAIN_ID,
-      })
-      await pub.waitForTransactionReceipt({ hash: depositHash as Hex })
-
-      setPhase("recording")
-      const rec = await recordDeposit(orderId, depositHash)
-      if (!rec.ok) {
-        setPhase("idle")
-        toast.error(rec.error ?? "El pago se envió pero no pudimos registrarlo.")
-        return
-      }
-
-      setTxUrl(rec.txUrl ?? explorerTxUrl(depositHash))
-      setPhase("done")
-      toast.success("Pago confirmado y protegido en garantía.")
-      onSettled?.()
-    } catch (err: any) {
-      setPhase("idle")
-      const msg = err?.shortMessage ?? err?.message ?? "No pudimos completar el pago."
-      if (/user rejected|denied/i.test(String(msg))) {
-        toast.error("Cancelaste la firma en la wallet.")
-      } else {
-        toast.error(msg)
-      }
-    }
   }
 
   if (phase === "done") {
@@ -224,8 +61,17 @@ export function SettleOrderButton({
     )
   }
 
+  if (autoRun && busy) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        {phaseLabel[phase]}
+      </span>
+    )
+  }
+
   return (
-    <Button size="sm" disabled={busy} onClick={run} className="gap-1.5">
+    <Button size="sm" disabled={busy} onClick={() => void settle(orderId)} className="gap-1.5">
       {busy ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin" />
       ) : (

@@ -215,7 +215,52 @@ export async function recordDeposit(orderId: string, txHash: string) {
   }
 
   revalidatePath("/dashboard")
+  revalidatePath("/cart")
+  revalidatePath("/app")
   return { ok: true as const, status: "escrowed" as const, txUrl: explorerTxUrl(txHash) }
+}
+
+/**
+ * Save the deposit tx hash as soon as the wallet broadcasts it, before receipt
+ * confirmation. Lets the buyer open CeloScan while the tx is still pending.
+ */
+export async function stageDepositTx(orderId: string, txHash: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect("/auth/login")
+
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash))
+    return { ok: false as const, error: "Hash de transacción inválido." }
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, client_id")
+    .eq("id", orderId)
+    .single()
+  if (!order || order.client_id !== user.id)
+    return { ok: false as const, error: "No encontramos la orden." }
+
+  const { error: uerr } = await supabase
+    .from("orders")
+    .update({ tx_hash: txHash, deposit_tx_hash: txHash })
+    .eq("id", orderId)
+    .eq("client_id", user.id)
+  if (uerr) return { ok: false as const, error: "No pudimos registrar el hash." }
+
+  await supabase.from("order_events").insert({
+    order_id: orderId,
+    actor_id: user.id,
+    event_type: "deposit_submitted",
+    payload: { txHash },
+    tx_hash: txHash,
+  })
+
+  revalidatePath("/dashboard")
+  revalidatePath("/cart")
+  revalidatePath("/app")
+  return { ok: true as const, txUrl: explorerTxUrl(txHash) }
 }
 
 /**

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { SiteHeader } from "@/components/site-header"
 import { ShopkeeperDashboard } from "@/components/dashboard/shopkeeper"
 import { ClientDashboard } from "@/components/dashboard/client"
+import { DashboardAutoPay } from "@/components/dashboard/auto-pay"
 import { computeSellerMetrics } from "@/lib/metrics/seller"
 import type { Product, Offer, Order, OrderItem, Profile, Store } from "@/lib/types"
 
@@ -111,6 +112,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-svh">
       <SiteHeader />
+      <DashboardAutoPay />
       <ClientDashboard
         profile={profile!}
         offers={(offers ?? []) as Offer[]}

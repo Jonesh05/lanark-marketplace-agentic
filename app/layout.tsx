@@ -22,7 +22,7 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: "Lanark — Agentic on-chain marketplace",
+  title: "Lanark - Agentic on-chain marketplace",
   description:
     "Browse a real product catalog, place offers in plain English, and let an autonomous agent settle every trade in USDm on Celo.",
   generator: "v0.app",

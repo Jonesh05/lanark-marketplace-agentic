@@ -124,7 +124,8 @@ export default function CartView({ groups: initial }: { groups: Group[] }) {
         ),
       )
       toast.success(copy.cart.orderOk)
-      router.push("/dashboard")
+      const firstOrderId = res.orders?.[0]?.order_id
+      router.push(firstOrderId ? `/dashboard?pay=${firstOrderId}` : "/dashboard")
     } catch {
       toast.error(copy.cart.orderError)
       setPlacing(false)

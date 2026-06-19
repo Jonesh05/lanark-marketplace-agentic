@@ -94,6 +94,7 @@ export async function POST(req: Request) {
       messages: convertedMessages,
       tools,
       stopWhen: stepCountIs(12),
+      experimental_telemetry: { isEnabled: false },
     })
 
     return result.toUIMessageStreamResponse()

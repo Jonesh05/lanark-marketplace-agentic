@@ -3,6 +3,9 @@
 import { useState } from "react"
 import { ChatUI } from "@/components/chat-ui"
 import { StateBoard } from "@/components/state-board"
+import {
+  AgentCheckoutSettle,
+} from "@/components/agent-checkout-settle"
 import { MessageSquare, LayoutDashboard } from "lucide-react"
 
 /**
@@ -19,9 +22,19 @@ import { MessageSquare, LayoutDashboard } from "lucide-react"
 export function Surface({ role }: { role: "client" | "shopkeeper" }) {
   const [tick, setTick] = useState(0)
   const [mobileView, setMobileView] = useState<"chat" | "state">("chat")
+  const [payOrderId, setPayOrderId] = useState<string | null>(null)
 
   return (
     <div className="flex h-[calc(100svh-3.5rem)] flex-col lg:flex-row">
+      {role === "client" && (
+        <AgentCheckoutSettle
+          orderId={payOrderId}
+          onDone={() => {
+            setPayOrderId(null)
+            setTick((t) => t + 1)
+          }}
+        />
+      )}
       {/* Chat Column - Always rendered, hidden on mobile when not active */}
       <div
         className={`flex-1 border-border/60 lg:border-r ${
@@ -32,6 +45,7 @@ export function Surface({ role }: { role: "client" | "shopkeeper" }) {
           role={role}
           embedded
           onActivity={() => setTick((t) => t + 1)}
+          onAuthorizedOrder={role === "client" ? setPayOrderId : undefined}
         />
       </div>
 
