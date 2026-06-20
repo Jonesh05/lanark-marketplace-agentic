@@ -29,6 +29,14 @@ export default async function CartPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
+  // Reusable default delivery address (persisted on checkout). Pre-fills the
+  // shipping field so the buyer never re-types it; falls back to empty.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("delivery_address")
+    .eq("id", user.id)
+    .maybeSingle()
+
   // The buyer's persistent cart is the single open cart (one per user).
   const { data: openCart } = await supabase
     .from("carts")
@@ -116,7 +124,7 @@ export default async function CartPage() {
           </p>
         </header>
 
-        <CartView groups={groups} />
+        <CartView groups={groups} defaultAddress={profile?.delivery_address ?? ""} />
       </section>
     </div>
   )

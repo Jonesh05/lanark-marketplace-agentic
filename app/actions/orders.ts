@@ -38,7 +38,8 @@ export async function confirmOrder(orderId: string) {
       return { ok: false as const, error: "Order is no longer pending", status: order.status }
     }
 
-    const orderWei = BigInt(String(order.total_cusd_wei ?? order.amount_cusd_wei ?? "0"))
+    const orderWeiRaw = String(order.total_cusd_wei ?? order.amount_cusd_wei ?? "0").split(".")[0]
+    const orderWei = /^-?\d+$/.test(orderWeiRaw) ? BigInt(orderWeiRaw) : BigInt(0)
     if (orderWei <= BigInt(0)) {
       return { ok: false as const, error: "invalid_total" }
     }

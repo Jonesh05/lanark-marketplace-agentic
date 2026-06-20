@@ -43,6 +43,15 @@ export async function checkoutCart(shippingAddress: string) {
     return { ok: false as const, error: "No pudimos crear tu orden. Intenta de nuevo." }
   }
 
+  // Persist the delivery address as the buyer's reusable default so the next
+  // checkout pre-fills it and the agent can reuse "my usual address". The
+  // per-order shipping address remains the immutable record on each order.
+  // Best-effort: never block a successful order on this profile write.
+  await supabase
+    .from("profiles")
+    .update({ delivery_address: address })
+    .eq("id", user.id)
+
   revalidatePath("/dashboard")
   revalidatePath("/cart")
   return {

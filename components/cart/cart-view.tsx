@@ -31,10 +31,16 @@ function lineTotal(l: Line) {
   return l.unit_price_cents * l.quantity
 }
 
-export default function CartView({ groups: initial }: { groups: Group[] }) {
+export default function CartView({
+  groups: initial,
+  defaultAddress = "",
+}: {
+  groups: Group[]
+  defaultAddress?: string
+}) {
   const router = useRouter()
   const [groups, setGroups] = React.useState<Group[]>(initial)
-  const [address, setAddress] = React.useState("")
+  const [address, setAddress] = React.useState(defaultAddress)
   const [placing, setPlacing] = React.useState(false)
   const [pendingId, setPendingId] = React.useState<string | null>(null)
 

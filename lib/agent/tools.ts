@@ -975,7 +975,11 @@ export function buildTools(deps: AgentDeps) {
           .eq("cart_id", cart.id)
         if (error) return { error: safeMessage(error.message), items: [] }
         const items = data ?? []
-        const totalWei = items.reduce((acc, it: any) => acc + BigInt(it.unit_price_cusd_wei ?? "0") * BigInt(it.quantity ?? 0), BigInt(0))
+        const toWei = (v: any) => {
+          const r = String(v ?? "0").split(".")[0]
+          try { return /^-?\d+$/.test(r) ? BigInt(r) : BigInt(0) } catch { return BigInt(0) }
+        }
+        const totalWei = items.reduce((acc, it: any) => acc + toWei(it.unit_price_cusd_wei) * BigInt(Number(it.quantity) || 0), BigInt(0))
         await log({ step: "execute", kind: "view_cart", receipt: { count: items.length } })
         return { items, total_cusd: Number(cusdWeiToHuman(totalWei)), count: items.length }
       },

@@ -180,14 +180,23 @@ export function useSettleOrder(onSettled?: () => void) {
       onSettled?.()
     } catch (err: unknown) {
       setPhase("idle")
-      const msg =
+      const raw =
         (err as { shortMessage?: string; message?: string })?.shortMessage ??
         (err as { message?: string })?.message ??
         "No pudimos completar el pago."
-      if (/user rejected|denied/i.test(String(msg))) {
+      // A thrown server action surfaces a stripped production digest
+      // ("An error occurred in the Server Components render…"). Never show that
+      // raw text to the buyer; map it to an actionable, friendly message.
+      const isServerDigest =
+        /server components render|omitted in production|a digest property|an error occurred in the server/i.test(
+          String(raw),
+        )
+      if (/user rejected|denied/i.test(String(raw))) {
         toast.error("Cancelaste la firma en la wallet.")
+      } else if (isServerDigest) {
+        toast.error("No pudimos preparar el pago. Intenta de nuevo en un momento.")
       } else {
-        toast.error(msg)
+        toast.error(raw)
       }
     } finally {
       running.current = false

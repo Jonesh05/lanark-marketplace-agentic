@@ -139,28 +139,36 @@ export async function prepareSettlement(orderId: string) {
   }
 
   // --- Off-chain honest fallback ---
-  const buyerAddr = (
-    await supabase.from("profiles").select("primary_address").eq("id", user.id).single()
-  ).data?.primary_address as `0x${string}` | undefined
-  if (buyerAddr) {
-    const funds = await settlement.checkFunds(buyerAddr, amountWei)
-    if (!funds.sufficient) {
-      return {
-        ok: false as const,
-        error: "insufficient_funds",
-        balanceCusd: cusdWeiToHuman(funds.balanceWei),
-        requiredCusd: cusdWeiToHuman(funds.requiredWei),
+  // Everything here can throw on a transient RPC / missing-admin-env condition.
+  // A thrown server action surfaces a raw production digest to the client, so
+  // we contain it and always return a friendly, typed result instead.
+  try {
+    const buyerAddr = (
+      await supabase.from("profiles").select("primary_address").eq("id", user.id).single()
+    ).data?.primary_address as `0x${string}` | undefined
+    if (buyerAddr) {
+      const funds = await settlement.checkFunds(buyerAddr, amountWei)
+      if (!funds.sufficient) {
+        return {
+          ok: false as const,
+          error: "insufficient_funds",
+          balanceCusd: cusdWeiToHuman(funds.balanceWei),
+          requiredCusd: cusdWeiToHuman(funds.requiredWei),
+        }
       }
     }
-  }
-  const admin = createAdminClient()
-  await admin.from("orders").update({ status: "awaiting_settlement" }).eq("id", order.id)
-  revalidatePath("/dashboard")
-  return {
-    ok: true as const,
-    mode: "offchain" as const,
-    status: "awaiting_settlement" as const,
-    amountLabel: cusdWeiToHuman(amountWei),
+    const admin = createAdminClient()
+    await admin.from("orders").update({ status: "awaiting_settlement" }).eq("id", order.id)
+    revalidatePath("/dashboard")
+    return {
+      ok: true as const,
+      mode: "offchain" as const,
+      status: "awaiting_settlement" as const,
+      amountLabel: cusdWeiToHuman(amountWei),
+    }
+  } catch (err) {
+    console.error("[prepareSettlement] offchain error:", err)
+    return { ok: false as const, error: "No pudimos preparar el pago. Intenta de nuevo en un momento." }
   }
 }
 
