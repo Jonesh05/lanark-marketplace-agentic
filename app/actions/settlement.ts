@@ -189,9 +189,11 @@ export async function recordDeposit(orderId: string, txHash: string) {
   if (!order.escrow_address)
     return { ok: false as const, error: "Esta orden no tiene garantía on-chain." }
 
-  // Verify on-chain: escrow must be Funded (State.Funded = 1) before we claim it.
+  // Verify on-chain: escrow must read Funded (State.Funded = 1) before we claim
+  // it. A null read means we could not confirm on-chain — never advance the
+  // order to `escrowed` on an unverifiable read; ask the buyer to retry.
   const state = await readEscrowState(order.escrow_address as `0x${string}`)
-  if (state !== null && state < 1) {
+  if (state === null || state < 1) {
     return { ok: false as const, error: "Aún no vemos el depósito confirmado en la red. Intenta en unos segundos." }
   }
 

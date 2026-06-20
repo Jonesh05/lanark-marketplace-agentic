@@ -3,6 +3,7 @@ import type { Product, Offer, Order, OrderItem, Profile, Store } from "@/lib/typ
 import type { SellerMetrics } from "@/lib/metrics/seller"
 import { formatPrice, shortAddress } from "@/lib/format"
 import { cusdWeiToHuman, SETTLEMENT_SYMBOL, explorerTxUrl } from "@/lib/celo"
+import { formatCopm } from "@/lib/currency"
 import { NewProductDialog } from "@/components/dashboard/new-product-dialog"
 import { OfferDecisionButtons } from "@/components/dashboard/offer-decision"
 import { EditProductDialog } from "@/components/dashboard/edit-product-dialog"
@@ -113,7 +114,12 @@ export function ShopkeeperDashboard({
 
       {/* Business metrics */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label={`Ingresos (${SETTLEMENT_SYMBOL})`} value={cusdWeiToHuman(metrics.revenueWei)} mono />
+        <Stat
+          label={`Ingresos (${SETTLEMENT_SYMBOL})`}
+          value={cusdWeiToHuman(metrics.revenueWei)}
+          sub={formatCopm(metrics.revenueWei)}
+          mono
+        />
         <Stat
           label="Ventas hoy"
           value={`${metrics.salesTodayCount}`}
@@ -170,7 +176,7 @@ export function ShopkeeperDashboard({
                       ) : null}
                     </span>
                     <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                      {cusdWeiToHuman(o.total_cusd_wei ?? o.amount_cusd_wei)} {SETTLEMENT_SYMBOL} · cliente {shortAddress(o.client_id)}
+                      {cusdWeiToHuman(o.total_cusd_wei ?? o.amount_cusd_wei)} {SETTLEMENT_SYMBOL} · {formatCopm(o.total_cusd_wei ?? o.amount_cusd_wei)} · cliente {shortAddress(o.client_id)}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

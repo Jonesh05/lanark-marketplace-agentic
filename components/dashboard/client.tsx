@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { Offer, Order, Profile } from "@/lib/types"
 import { formatPrice, shortAddress } from "@/lib/format"
 import { cusdWeiToHuman, SETTLEMENT_SYMBOL, explorerTxUrl } from "@/lib/celo"
+import { formatCopm } from "@/lib/currency"
 import { Button } from "@/components/ui/button"
 import { AuthorizeOrderButton } from "@/components/dashboard/authorize-order"
 import { SettleOrderButton, ReleaseOrderButton } from "@/components/dashboard/settle-order"
@@ -58,7 +59,12 @@ export function ClientDashboard({
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Open offers" value={pending.toString()} accent />
         <Stat label="Completed orders" value={settled.toString()} />
-        <Stat label={`Spent (${SETTLEMENT_SYMBOL})`} value={cusdWeiToHuman(totalSpent)} mono />
+        <Stat
+          label={`Spent (${SETTLEMENT_SYMBOL})`}
+          value={cusdWeiToHuman(totalSpent)}
+          sub={formatCopm(totalSpent)}
+          mono
+        />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -128,7 +134,10 @@ export function ClientDashboard({
                     ) : null}
                   </span>
                   <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-                    {cusdWeiToHuman(o.amount_cusd_wei)} {SETTLEMENT_SYMBOL}
+                    {cusdWeiToHuman(o.total_cusd_wei ?? o.amount_cusd_wei)} {SETTLEMENT_SYMBOL}
+                    <span className="ml-1 normal-case text-muted-foreground/70">
+                      · {formatCopm(o.total_cusd_wei ?? o.amount_cusd_wei)}
+                    </span>
                     {" · "}
                     {o.tx_hash ? (
                       <a
@@ -169,11 +178,13 @@ export function ClientDashboard({
 function Stat({
   label,
   value,
+  sub,
   accent,
   mono,
 }: {
   label: string
   value: string
+  sub?: string
   accent?: boolean
   mono?: boolean
 }) {
@@ -191,6 +202,11 @@ function Stat({
       >
         {value}
       </span>
+      {sub ? (
+        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
+          {sub}
+        </span>
+      ) : null}
     </div>
   )
 }

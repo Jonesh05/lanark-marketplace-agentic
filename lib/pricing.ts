@@ -10,7 +10,13 @@
 
 import { cusdToWei } from "./celo"
 
-export const COP_PER_USD = 4000
+// Operational COP↔USD rate. Single source of truth; override per environment
+// with NEXT_PUBLIC_COP_PER_USD so the peso (COPm) layer can be retuned without
+// a code change. Falls back to 4000 when unset or invalid.
+export const COP_PER_USD = (() => {
+  const raw = Number(process.env.NEXT_PUBLIC_COP_PER_USD)
+  return Number.isFinite(raw) && raw > 0 ? raw : 4000
+})()
 
 /** Major-unit amount in the listing currency (price_cents / 100). */
 export function priceMajor(priceCents: number): number {

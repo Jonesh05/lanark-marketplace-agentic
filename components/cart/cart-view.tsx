@@ -5,6 +5,9 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { formatPrice } from "@/lib/format"
+import { productCusd, COP_PER_USD } from "@/lib/pricing"
+import { SETTLEMENT_SYMBOL } from "@/lib/celo"
+import { OPERATIONAL_SYMBOL } from "@/lib/currency"
 import { checkoutCart, authorizeOrder } from "@/app/actions/checkout"
 import copy from "@/lib/copy/en"
 
@@ -154,6 +157,20 @@ export default function CartView({ groups: initial }: { groups: Group[] }) {
     for (const l of g.lines)
       totals.set(l.currency, (totals.get(l.currency) ?? 0) + lineTotal(l))
 
+  // Operational settlement total: every line, regardless of native currency,
+  // projects onto the same cUSD rail (USDm) and its peso view (COPm). This is
+  // the amount the escrow actually moves on-chain.
+  const settlementCusd = groups.reduce(
+    (s, g) =>
+      s +
+      g.lines.reduce(
+        (ls, l) => ls + productCusd(l.unit_price_cents, l.currency) * l.quantity,
+        0,
+      ),
+    0,
+  )
+  const settlementCop = Math.round(settlementCusd * COP_PER_USD)
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
       {/* Items grouped by seller (single-vendor settlement) */}
@@ -274,6 +291,21 @@ export default function CartView({ groups: initial }: { groups: Group[] }) {
               </span>
             </div>
           ))}
+        </div>
+
+        <div className="flex flex-col gap-1 border-b border-border/40 pb-4">
+          <div className="flex items-center justify-between text-sm font-semibold">
+            <span className="text-muted-foreground">Liquidación</span>
+            <span className="font-mono tabular-nums">
+              {settlementCusd.toFixed(2)} {SETTLEMENT_SYMBOL}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground/80">
+            <span>En pesos</span>
+            <span className="font-mono tabular-nums">
+              {OPERATIONAL_SYMBOL} {settlementCop.toLocaleString("es-CO")}
+            </span>
+          </div>
         </div>
 
         <label className="flex flex-col gap-1.5">

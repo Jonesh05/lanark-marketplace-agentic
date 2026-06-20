@@ -14,6 +14,7 @@ import type { Order, OrderItem, Product } from "@/lib/types"
 const SALE_STATUSES = new Set([
   "pending",
   "submitted",
+  "escrowed",
   "awaiting_settlement",
   "settled",
   "confirmed",
