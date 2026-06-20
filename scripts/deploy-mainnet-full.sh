@@ -2,7 +2,7 @@
 # Deploy LANARK settlement contracts to Celo Mainnet, verify on CeloScan,
 # record addresses, and patch .env + Vercel production env.
 #
-# Prerequisite: deployer 0xbBABbD2620CEfe3EfdC41bA661ae75f2D9c6647E funded with CELO.
+# Prerequisite: the deployer (derived from .env PRIVATE_KEY) funded with CELO.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -11,10 +11,18 @@ export PATH="${HOME}/.foundry/bin:${PATH:-/usr/bin:/bin}"
 CUSD="0x765DE816845861e75A25fCA122bb6898B8B1282a"
 RPC="https://forno.celo.org"
 CHAIN_ID=42220
-DEPLOYER="0xbBABbD2620CEfe3EfdC41bA661ae75f2D9c6647E"
 RECORD="contracts/deployed-mainnet.json"
 
 envval() { grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- | sed -E 's/^"//; s/"$//'; }
+
+# Deployer address is never hardcoded. It is read from LANARK_DEPLOYER_ADDRESS or
+# derived from the local-only PRIVATE_KEY (.env, git-ignored, never committed).
+DEPLOYER="$(envval LANARK_DEPLOYER_ADDRESS)"
+[ -z "$DEPLOYER" ] && DEPLOYER="$(cast wallet address --private-key "$(envval PRIVATE_KEY)" 2>/dev/null || true)"
+if [ -z "$DEPLOYER" ]; then
+  echo "BLOCKED: set PRIVATE_KEY (or LANARK_DEPLOYER_ADDRESS) in .env" >&2
+  exit 1
+fi
 
 patch_env() {
   local key="$1" val="$2"

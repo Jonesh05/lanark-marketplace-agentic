@@ -64,6 +64,9 @@ Thumbs.db
 node_modules
 .env
 
+# Internal deploy runbook — may reference operational addresses; keep out of VCS
+DEPLOY.md
+
 # Foundry (smart contracts)
 /lib-foundry/
 /cache/
