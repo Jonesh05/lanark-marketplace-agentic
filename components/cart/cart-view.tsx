@@ -28,7 +28,8 @@ type Group = {
 }
 
 function lineTotal(l: Line) {
-  return l.unit_price_cents * l.quantity
+  const cents = l.unit_price_cents ?? 0
+  return cents * l.quantity
 }
 
 export default function CartView({
@@ -133,6 +134,7 @@ export default function CartView({
         ),
       )
       toast.success(copy.cart.orderOk)
+      setPlacing(false)
       const firstOrderId = res.orders?.[0]?.order_id
       router.push(firstOrderId ? `/dashboard?pay=${firstOrderId}` : "/dashboard")
     } catch {

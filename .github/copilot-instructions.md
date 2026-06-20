@@ -38,7 +38,8 @@ Use the following stack as the default implementation baseline:
 * Next.js App Router
 * Vercel AI SDK (`ai` package)
 * Chat UI with `useChat`
-* Clerk for auth
+* Reown for auth
+* Sentry for error monitoring
 * Supabase for schema, RLS, auth triggers, persistence
 * Celo Mainnet / EVM-compatible chain for settlement
 * Foundry for smart contract development and tests

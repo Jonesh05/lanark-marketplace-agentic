@@ -71,3 +71,7 @@ node_modules
 out/
 
 DEPLOY.md
+
+.github/copilot-instructions.md
+
+.github/*

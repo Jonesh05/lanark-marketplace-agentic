@@ -2,7 +2,8 @@
 //
 // Storage convention: `products.price_cents` holds MAJOR units × 100 in the
 // listing's native currency (e.g. 1_200_000 = 12,000.00 COP, 999 = $9.99 USD).
-// cUSD is a USD stablecoin (1 USD ≈ 1 cUSD); COP is converted by COP_PER_USD.
+// cUSD is the on-chain settlement token; user-facing amounts display as USDm.
+// COP is converted by COP_PER_USD.
 //
 // These helpers exist because the agent once returned raw `price_cents` to the
 // model, which read 1_200_000 as "1,200,000 COP" — a 100x error. Always derive
@@ -32,9 +33,16 @@ export function productCusd(
   currency: string,
   priceCusd?: number | string | null,
 ): number {
-  if (priceCusd !== null && priceCusd !== undefined && priceCusd !== "") {
-    const n = Number(priceCusd)
-    if (Number.isFinite(n) && n > 0) return n
+  if (priceCusd !== null && priceCusd !== undefined && String(priceCusd).trim() !== "") {
+    const raw = String(priceCusd).trim()
+    // Validate decimal format without using Number(), which silently truncates
+    // large strings (>2^53) and can mislead downstream wei conversion.
+    if (/^\d+(\.\d+)?$/.test(raw) && raw !== "0" && !raw.startsWith("0.0")) {
+      return parseFloat(raw)
+    }
+    if (/^0\.0\d+/.test(raw)) {
+      return parseFloat(raw)
+    }
   }
   const major = priceMajor(priceCents)
   const rate = currency === "COP" ? COP_PER_USD : 1
@@ -50,7 +58,7 @@ export function priceLabel(
   const major = priceMajor(priceCents)
   const cusd = productCusd(priceCents, currency, priceCusd)
   const majorStr = major.toLocaleString("es-CO", { maximumFractionDigits: 2 })
-  return `${majorStr} ${currency} (~${cusd.toFixed(2)} cUSD)`
+  return `${majorStr} ${currency} (~${cusd.toFixed(2)} USDm)`
 }
 
 /**
@@ -71,7 +79,8 @@ export function productUnitPriceWei(
     }
   }
   const human = productCusd(priceCents, currency, null)
-  if (!Number.isFinite(human) || human <= 0) return BigInt(0)
+  if (!Number.isFinite(human) || human < 0) throw new Error("invalid_price: human amount is negative or non-finite")
+  if (human === 0) throw new Error("unpriced_product: cannot compute wei for zero-priced item")
   return cusdToWei(human)
 }
 

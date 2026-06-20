@@ -8,7 +8,7 @@ const en = {
     addButton: "Add"
   },
   hero: {
-    preline: "Agentic · USDm · Celo",
+    preline: "Agentic · USDm · COPm · Celo",
     title: "An agent-driven wholesale marketplace",
     subtitle: "Browse verified catalogs, submit offers, and settle sales in USDm on Celo. Your cart, purchases and history stay off-chain; only the sale settlement is recorded on-chain.",
     ctaPrimary: "Sign in to browse",
