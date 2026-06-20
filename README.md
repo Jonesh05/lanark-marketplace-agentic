@@ -4,8 +4,6 @@
 
 LANARK is a modular marketplace that combines traditional e-commerce UX with agentic execution, on-chain settlement, and mobile-first stablecoin payments. It is designed so a buyer can discover products, build a cart, authorize payment, and review the transaction history, while each seller manages its own storefront, inventory, orders, and metrics.
 
-The README is written as a build-and-understand guide: a reader should be able to inspect the repo, understand the moving parts, and know how the product is wired without needing internal context.
-
 The product is built around a clear principle:
 
 > **Commerce stays practical off-chain; settlement and traceability stay verifiable on-chain.**
@@ -16,14 +14,14 @@ The product is built around a clear principle:
 
 LANARK lets people:
 
-- browse merchants and products
-- add products to a persistent cart
-- complete checkout from a mobile-first surface
-- authorize payment with a wallet flow
-- store and display transaction references
-- inspect order history and CeloScan links
-- operate a seller dashboard with real business metrics
-- interact with an agent that helps execute commerce actions
+- Browse merchants and products
+- Add products to a persistent cart
+- Complete checkout from a mobile-first surface
+- Authorize payment with a wallet flow
+- Store and display transaction references
+- Inspect order history and CeloScan links
+- Operate a seller dashboard with real business metrics
+- Interact with an agent that helps execute commerce actions
 
 LANARK is not just a catalog. It is an **execution layer** for commerce.
 
@@ -33,11 +31,11 @@ LANARK is not just a catalog. It is an **execution layer** for commerce.
 
 Traditional e-commerce often separates:
 
-- discovery
-- checkout
-- payment
-- traceability
-- merchant operations
+- Discovery
+- Checkout
+- Payment
+- Traceability
+- Merchant operations
 
 LANARK connects those layers into one system:
 
@@ -86,82 +84,81 @@ flowchart LR
 ### 1) Marketplace
 The marketplace is the customer-facing discovery surface. It supports:
 
-- products
-- stores / merchants
-- categories
-- search
-- filters
-- horizontal browsing by store
-- mobile-first exploration
+- Products
+- Stores / Merchants
+- Categories
+- Search
+- Filters
+- Horizontal browsing by store
+- Mobile-first exploration
 
 ### 2) Cart
 The cart is a persistent commerce state, not a temporary UI toy.
 
 It must preserve:
 
-- selected products
-- quantities
-- seller boundaries
-- checkout state
-- price integrity
+- Selected products
+- Quantities
+- Seller boundaries
+- Checkout state
+- Price integrity
 
 ### 3) Checkout
 Checkout is where the purchase becomes executable.
 
 It handles:
 
-- order creation
-- authorization
-- payment approval
-- settlement readiness
-- transaction visibility
-- post-purchase history refresh
+- Order creation
+- Authorization
+- Payment approval
+- Settlement readiness
+- Transaction visibility
+- Post-purchase history refresh
 
 ### 4) Agent Surface
 The agent surface turns commerce intent into action.
 
 The agent helps the buyer:
 
-- search products
-- find the right store
-- add items
-- complete checkout
-- follow the order state
-- continue by text or voice
+- Search products
+- Find the right store
+- Add items
+- Checkout
+- Follow the order state
+- Text or voice
 
 ### 5) Seller Dashboard
 The seller dashboard is the operational control center for the shopkeeper.
 
 It should show:
 
-- orders received
-- daily sales
-- revenue
-- top products
-- recurring buyers
-- inventory status
-- transaction history
-- settlement status
+- Orders received
+- Daily sales
+- Revenue
+- Top products
+- Recurring buyers
+- Inventory status
+- Transaction history
+- Settlement status
 
 ### 6) Wallet / History
 The wallet and history surfaces provide:
 
-- account context
-- wallet address visibility
-- copy-to-clipboard support
-- current network
-- balances
-- order history
+- Account context
+- Wallet address
+- Current network
+- Balances
+- Order history
 - CeloScan links
 
 ### 7) Settlement Layer
 The settlement layer is responsible for the on-chain side of commerce:
 
-- escrow / authorization flow
-- transaction hashing
-- receipt tracking
-- on-chain traceability
-- order state updates
+- Escrow / authorization flow
+- Transaction hashing
+- Receipt tracking
+- On-chain traceability
+- Order state updates
 
 ---
 
@@ -173,11 +170,11 @@ LANARK is built for **Celo Mainnet** as the production settlement environment.
 ### Stablecoins
 The product supports a stablecoin-first commercial model.
 
-- **COPm**: default commercial unit for Colombia-focused commerce
-- **USDm**: canonical stablecoin unit for broader / non-Colombia flows
+- **COPm**: default commercial stablecoin
+- **USDm**: canonical stablecoin unit for broader  flows
 
 ### Gas / execution
-The UX should remain simple for end users. Where supported by the environment and wallet, the flow is designed to feel close to gas-sponsored commerce while the actual settlement remains on-chain and auditable.
+The user experience is simple for end users. The flow is designed to resemble gas-sponsored transactions on the first transaction; the actual settlement remains on the blockchain and is auditable.
 
 ### Important principle
 - **Catalog, inventory, orders, and merchant operations stay off-chain**
@@ -196,7 +193,7 @@ The UX should remain simple for end users. Where supported by the environment an
 5. Authorize payment
 6. Sign the transaction in the wallet
 7. Receive order confirmation
-8. View tx hash and CeloScan link
+8. View tx hash
 9. Open order history
 
 ### Seller flow
@@ -231,12 +228,12 @@ The system is organized around:
 
 ### Rules
 
-- each checkout belongs to a single seller/store
-- order state must be explicit
-- amounts must have one canonical conversion path
-- data validation must be server-side
-- seller data must stay isolated by tenant / role
-- buyer and seller surfaces must remain separated
+- Each checkout belongs to a single seller/store
+- Order state must be explicit
+- Amounts must have one canonical conversion path
+- Data validation must be server-side
+- Seller data must stay isolated by tenant / role
+- Buyer and seller surfaces must remain separated
 
 ---
 
@@ -245,26 +242,26 @@ The system is organized around:
 ### Off-chain
 Used for:
 
-- catalog operations
-- cart state
-- merchant profile
-- shipping address
-- notifications
-- analytics
-- business metrics
-- agent orchestration
+- Catalog operations
+- Cart state
+- Merchant profile
+- Shipping address
+- Notifications
+- Analytics
+- Business metrics
+- Agent orchestration
 
 ### On-chain
 Used for:
 
-- settlement evidence
-- transaction proof
-- address / hash traceability
-- escrow-style commerce logic
-- verifiable state transitions
+- Settlement evidence
+- Transaction proof
+- Address / hash traceability
+- Escrow-style commerce logic
+- Verifiable state transitions
 
 ### Future privacy layer
-LANARK is compatible with future privacy-preserving extensions, including selective disclosure and zero-knowledge proof patterns for compliance and identity proofs where needed.
+LANARK is compatible with privacy-preserving and zero-knowledge proof  for compliance and identity proofs where needed.
 
 ---
 
@@ -272,17 +269,13 @@ LANARK is compatible with future privacy-preserving extensions, including select
 
 LANARK is designed to work in a mobile-first Celo environment, including MiniPay.
 
-Key expectations:
-
-- detect MiniPay when present
+- MiniPay
 - use the wallet provided by the environment
-- avoid forcing a secondary wallet setup
-- keep the checkout flow simple
-- maintain stablecoin-first commerce
-- keep transaction references visible
-- preserve the regular browser flow outside MiniPay
-
-MiniPay should feel like a native execution context, not a separate product.
+- Avoid forcing a secondary wallet setup
+- Keep the checkout flow simple
+- Maintain stablecoin-first commerce
+- Keep transaction references visible
+- Preserve the regular browser flow outside MiniPay
 
 ---
 
@@ -302,13 +295,10 @@ LANARK is designed with practical compliance in mind:
 
 The project can evolve toward:
 
-- selective disclosure
 - proof-based identity assertions
 - seller verification
 - compliance proofs
 - privacy-preserving account attestations
-
-This is intentionally separated from the core commerce flow so the product remains usable today.
 
 ---
 
@@ -327,133 +317,95 @@ This is intentionally separated from the core commerce flow so the product remai
 
 ---
 
-## Development flow
+## Development Workflow
 
-### Local run
+### 1. Install dependencies
+
 ```bash
 npm install
+```
+
+### 2. Start the development environment
+
+```bash
 npm run dev
 ```
 
-### Type check
+### 3. Static analysis
+
+Before creating commits or pull requests, validate the project.
+
 ```bash
+npm run lint
 npm run typecheck
-# or
+```
+
+or
+
+```bash
 npx tsc --noEmit
 ```
 
-### Production build
+---
+
+### 4. Production verification
+
+Every production release must successfully complete the build pipeline.
+
 ```bash
 npm run build
 npm run start
 ```
 
-### Contracts
+---
+
+### 5. Smart Contract Validation
+
+LANARK's settlement layer is developed using Foundry.
+
 ```bash
 forge build
 forge test
 ```
 
+---
+
 ### Deployment
-- push to GitHub
-- deploy frontend to Vercel
-- deploy contracts to the target Celo network
-- update environment variables
-- verify explorer links and transaction history
+
+- Deploy contracts to the target Celo network
+- Update environment variables
+- Verify explorer links and transaction history
 
 ---
 
-## Environment variables
-
-LANARK uses environment variables for both client and server scopes.
 
 Typical groups include:
 
 - **Celo / chain**
-  - chain id
-  - RPC URL
-  - settlement token
-  - escrow factory
-  - worker/deployer key
 
 - **Supabase**
-  - URL
-  - anon key
-  - service role key
 
 - **AI / agent**
-  - Azure OpenAI endpoint
-  - deployment name
-  - API key
 
 - **Observability**
-  - Sentry DSN
-  - Sentry auth token
-  - project slug / org
 
 - **Notifications**
-  - SMS / WhatsApp provider credentials
+
 
 ---
 
-## Current product focus
 
-The current focus is to keep the product stable while improving:
-
-- checkout integrity
-- wallet signature flow
-- transaction visibility
-- dashboard quality
-- MiniPay compatibility
-- production deploy reliability
-- order history and tx traceability
-
-This is a working product, not a hidden prototype. The documentation is meant to help any reader understand how LANARK works and how to extend it safely.
----
-
-## Suggested user experience
-
-A good LANARK experience should feel like this:
-
-- discover a merchant
-- inspect products
-- add to cart
-- checkout quickly
-- sign once
-- see the order state change
-- receive a traceable receipt
-- return later and view the same order history
-
-That is the product.
-
----
-
-## Repository intent and collaboration model
-
-This repository is intended to be **read, understood, extended, and deployed** by builders, reviewers, and hackathon evaluators.
-
-Anyone landing on GitHub should be able to inspect:
-
-- the product architecture
-- the agentic execution flow
-- the contract layer
-- the server actions
-- the settlement path
-- the business rules
-- the deployment steps
-
-Sensitive values stay in environment variables and are never committed, but the system itself is intentionally transparent enough to learn from, integrate with, and demo.
+## Repository intent
 
 It combines:
 
-- e-commerce UX
-- agentic execution
-- on-chain settlement
-- mobile-first payment flows
-- merchant operations
-- stablecoin commerce
-
-The goal is not to add blockchain for novelty.  
+- E-commerce UX
+- Agentic execution
+- On-chain settlement
+- Mobile-first payment flows
+- Merchant operations
+- Stablecoin commerce
+  
 The goal is to make commerce **more executable, more traceable, and more usable**.
 
 ---
@@ -461,22 +413,21 @@ The goal is to make commerce **more executable, more traceable, and more usable*
 ## Roadmap
 
 ### Now
-- stabilize checkout
-- keep wallet and transaction flow reliable
-- preserve production stability
-- ensure dashboard and history are accurate
+- Stabilize checkout
+- Keep wallet and transaction flow reliable
+- Preserve production stability
+- Ensure dashboard and history are accurate
 
 ### Next
-- stronger MiniPay integration
-- richer analytics and BI
-- notifications
-- merchant onboarding improvements
-- privacy / proof-based extensions
+- MiniPay integration
+- Notifications
+- Merchant onboarding improvements
+- Privacy / proof-based extensions
 
 ### Later
-- more advanced compliance layers
-- zero-knowledge proof-based attestations
-- richer automation across buyer and seller agents
+- More advanced compliance layers
+- Zero-knowledge proof-based attestations
+- Richer automation across buyer and seller agents
 
 ---
 
@@ -491,11 +442,9 @@ It separates:
 
 and connects them through:
 
-- a buyer-friendly cart and checkout
-- seller-specific operations
-- wallet-driven authorization
-- transaction history
-- stablecoin settlement
-- mobile-first execution
-
-It is built to be understandable from GitHub, deployable in production, and usable in a real mobile commerce flow.
+- A buyer-friendly cart and checkout
+- Seller-specific operations
+- Wallet-driven authorization
+- Transaction history
+- Stablecoin settlement
+- Mobile-first execution
