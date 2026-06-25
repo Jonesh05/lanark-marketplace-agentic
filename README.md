@@ -2,6 +2,12 @@
 
 **Execution-layer marketplace agentic on-chain for B2B/B2C commerce on Celo.**
 
+
+---
+<p align="center">
+  <img src="./docs/assets/hero.png" alt="LANARK Marketplace" width="100%">
+</p>
+
 LANARK is a modular commerce platform that combines traditional e-commerce UX with agentic execution, on-chain settlement, and mobile-first stablecoin payments. It is designed so a buyer can discover products, build a cart, authorize payment, and review the transaction history, while each seller manages its own storefront, inventory, orders, and metrics.
 
 The product follows a clear principle:
