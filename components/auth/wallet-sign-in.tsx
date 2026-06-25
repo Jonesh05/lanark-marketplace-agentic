@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Wallet, Loader2, ArrowRight, Power } from "lucide-react"
 import { shortAddress } from "@/lib/format"
 import { useIsMiniPay } from "@/hooks/use-minipay"
+import { projectId } from "@/lib/reown/config"
 
 function buildMessage(address: string, nonce: string) {
   return [
@@ -101,10 +102,25 @@ export function WalletSignIn({ role }: { role: "client" | "shopkeeper" }) {
 
   // Show disabled initializer while AppKit isn't ready
   if (!appKit) {
+    const missingConfig = !projectId
     return (
-      <Button size="lg" className="h-12 w-full justify-center gap-3" disabled>
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Initializing...
+      <Button
+        size="lg"
+        className="h-12 w-full justify-center gap-3"
+        disabled={missingConfig}
+        onClick={missingConfig ? undefined : () => appKit?.open?.()}
+        type="button"
+      >
+        {missingConfig ? (
+          <>
+            Configuración incompleta
+          </>
+        ) : (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Initializing…
+          </>
+        )}
       </Button>
     )
   }
